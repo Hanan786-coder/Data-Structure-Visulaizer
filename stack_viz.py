@@ -1,6 +1,6 @@
 import pygame
 import sys
-import Colors  # Imports your Colors.py file
+import Colors
 
 # --- Configuration ---
 SCREEN_WIDTH = 900
@@ -37,11 +37,11 @@ def get_font(size, bold=False):
         return pygame.font.SysFont('Arial', size, bold=bold)
 
 
-# --- REDUCED FONT SIZES (~30% smaller) ---
-font_title = get_font(28)  # Was 32
-font_ui = get_font(17)  # Was 20
-font_elem = get_font(19)  # Was 24
-font_logic = get_font(13)  # Was 18
+# FONT SIZES
+font_title = get_font(28)
+font_ui = get_font(17)
+font_elem = get_font(19)
+font_logic = get_font(13)
 
 
 # --- UI Classes ---
