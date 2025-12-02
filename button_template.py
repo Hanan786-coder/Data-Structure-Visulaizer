@@ -1,27 +1,22 @@
-import pygame
-import Colors
-
 class Button:
-    def __init__(self, x, y, width, height, text, color, hover_color, text_size, text_color=Colors.WHITE):
-        self.rect = pygame.Rect(x, y, width, height)
-        self.color = color
-        self.hover_color = hover_color
+    def __init__(self, x, y, w, h, text, action_code):
+        self.rect = pygame.Rect(x, y, w, h)
         self.text = text
-        self.text_color = text_color
-        self.font = pygame.font.Font("ScienceGothic-Regular.ttf",text_size)
+        self.action_code = action_code
+        self.is_hovered = False
 
-    def draw(self, screen):
-        # Change color on hover
-        mouse_pos = pygame.mouse.get_pos()
-        if self.rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, self.hover_color, self.rect)
-        else:
-            pygame.draw.rect(screen, self.color, self.rect)
+    def draw(self, surface):
+        color = TEAL_BRIGHT if self.is_hovered else TEAL
+        pygame.draw.rect(surface, color, self.rect, border_radius=8)
 
-        # Write text
-        text_surf = self.font.render(self.text, True, self.text_color)
-        text_rect = text_surf.get_rect(center=self.rect.center)
-        screen.blit(text_surf, text_rect)
+        # Text
+        txt_surf = font_ui.render(self.text, True, LIGHT_GREY)
+        txt_rect = txt_surf.get_rect(center=self.rect.center)
+        surface.blit(txt_surf, txt_rect)
 
-    def is_clicked(self, event):
-        return event.type == pygame.MOUSEBUTTONDOWN and self.rect.collidepoint(event.pos)
+    def check_hover(self, pos):
+        self.is_hovered = self.rect.collidepoint(pos)
+
+    def is_clicked(self, pos):
+        return self.rect.collidepoint(pos)
+
