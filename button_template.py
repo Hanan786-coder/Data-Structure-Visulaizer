@@ -22,6 +22,6 @@ class Button:
     def check_hover(self, pos):
         self.is_hovered = self.rect.collidepoint(pos)
 
-    def is_clicked(self):
-        return self.rect.collidepoint(pygame.mouse.get_pos())
+    def is_clicked(self, event):
+        return self.rect.collidepoint(pygame.mouse.get_pos()) and event.type == pygame.MOUSEBUTTONDOWN
 
