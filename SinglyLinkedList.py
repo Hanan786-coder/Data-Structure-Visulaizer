@@ -1,4 +1,5 @@
 import pygame
+
 from button_template import Button
 import Colors
 
@@ -99,7 +100,8 @@ status_color = Colors.LIGHT_GREY
 title = titleFont.render("Singly Linked List", True, Colors.TEAL)
 cap_value_txt = paraFont.render("Capacity (Max 6): ", True, Colors.LIGHT_GREY)
 value_txt = paraFont.render("Value: ", True, Colors.LIGHT_GREY)
-pos_txt = paraFont.render("Pos: ", True, Colors.LIGHT_GREY)
+pos_txt_1 = paraFont.render("Pos: ", True, Colors.LIGHT_GREY)
+pos_txt_2 = paraFont.render("Pos: ", True, Colors.LIGHT_GREY)
 
 status_msg = "Ready"
 logic_msg = "Waiting for a operation..."
@@ -221,18 +223,18 @@ def erase_pointer(screen, node, pointer_type="HEAD"):
         pygame.draw.rect(screen, Colors.GREY, clear_rect)
 
 
-def draw_temp_on_head(node):
+def draw_pointer_on_head(node, text, color):
     temp_x = node.shape.x + node.shape.width // 2
     temp_y = node.shape.y - 20
 
     # Draw TEMP pointer
-    pygame.draw.polygon(screen, Colors.ORANGE, [
+    pygame.draw.polygon(screen, color, [
         (temp_x, temp_y - 29),  # Tip of TEMP pointer (above HEAD)
         (temp_x - 10, temp_y - 45),  # Left point
         (temp_x + 10, temp_y - 45)  # Right point
     ])
 
-    lbl_temp = subFont.render("TEMP", True, Colors.ORANGE)
+    lbl_temp = subFont.render(f"{text}", True, color)
     screen.blit(lbl_temp, (temp_x - lbl_temp.get_width() // 2, temp_y - 65))
 
 
@@ -240,7 +242,9 @@ def draw_temp_on_head(node):
 cap_bar = InputBar(50, 145, 130, 40, Colors.BLACK)
 cap_bar.text = "6"
 node_bar = InputBar(50, 230, 130, 40, Colors.BLACK, 4)
-pos_bar = InputBar(50, 315, 130, 40, Colors.BLACK, 2)
+pos_insert_bar = InputBar(50, 315, 130, 40, Colors.BLACK, 2)
+pos_delete_bar = InputBar(330, 315, 130, 40, Colors.BLACK, 2)
+
 
 # Buttons
 set_max_button = Button(190, 145, 120, 40, "Set Max", None, 18)
@@ -250,6 +254,7 @@ insert_at_pos_button = Button(190, 315, 120, 40, "Insert", None, 18)
 delete_head_button = Button(450, 170, 130, 50, "Delete Head", None, 18)
 delete_tail_button = Button(590, 170, 130, 50, "Delete Tail", None, 18)
 destroy_button = Button(730, 170, 130, 50, "Destroy List", None, 18)
+delete_at_pos_button = Button(470, 315, 120, 40, "Delete", None, 18)
 
 
 # Linked Lists class
@@ -376,7 +381,7 @@ class SLL:
             set_status("Initializing...", Colors.ORANGE, "> temp = head")
             temp = self.head
 
-            draw_temp_on_head(temp)
+            draw_pointer_on_head(temp, "TEMP", Colors.ORANGE)
 
             update_status_ui()
             pygame.display.update()
@@ -437,7 +442,7 @@ class SLL:
         set_status("Initializing...", Colors.ORANGE, "> temp = head")
         temp = self.head
 
-        draw_temp_on_head(temp)
+        draw_pointer_on_head(temp, "TEMP", Colors.ORANGE)
         update_status_ui()
         pygame.display.update()
         pygame.time.delay(500)
@@ -512,7 +517,7 @@ class SLL:
 
         # Traversal
         temp = self.head
-        draw_temp_on_head(temp)
+        draw_pointer_on_head(temp, "TEMP", Colors.ORANGE)
         pygame.display.update()
         pygame.time.delay(500)
 
@@ -631,7 +636,7 @@ class SLL:
         self.drawList()
 
         if temp == self.head:
-            draw_pointer(temp, "TEMP_ABOVE", Colors.ORANGE)
+            draw_pointer_on_head(temp, "TEMP", Colors.ORANGE)
         else:
             draw_pointer(temp, "TEMP", Colors.ORANGE)
 
@@ -649,6 +654,121 @@ class SLL:
         update_status_ui()
         pygame.display.update()
 
+    def deleteFromPos(self, pos, screen):
+        # Validation & Edge Cases
+        if pos < 1 or pos > self.length:
+            set_status("Invalid Position!", Colors.RED, "> pos out of bounds")
+            return
+        if pos == 1:
+            self.deleteHead(screen)
+            return
+        if pos == self.length - 1:
+            self.deleteTail(screen)
+            return
+
+        set_status("Traversing...", Colors.ORANGE, "> finding pos - 1")
+
+        # 2. Traversal
+        temp = self.head
+        prev = None
+
+        # Draw initial status
+        draw_pointer_on_head(temp,"TEMP",Colors.ORANGE)
+        pygame.display.update()
+        pygame.time.delay(500)
+
+        for i in range(pos - 1):
+            # Erase previous pointers
+            if temp == self.head:
+                erase_pointer(screen, temp, "TEMP_ABOVE")
+            else:
+                erase_pointer(screen, temp, "TEMP")
+            if prev:
+                if prev == self.head:
+                    erase_pointer(screen, prev, "TEMP_ABOVE")
+                else:
+                    erase_pointer(screen, prev, "PREV")
+
+            # Move pointers
+            prev = temp
+            temp = temp.next
+
+            draw_pointer(temp, "TEMP", Colors.ORANGE)
+            if prev == self.head:
+                draw_pointer_on_head(prev, "PREV", Colors.TEAL_BRIGHT)
+            else:
+                draw_pointer(prev, "PREV", Colors.TEAL_BRIGHT)
+
+            update_status_ui()
+            pygame.display.update()
+            pygame.time.delay(500)
+
+        set_status("Re-linking...", Colors.ORANGE, "> prev.next = temp.next")
+
+        prev.next = temp.next
+
+        # Update
+        # Erase the old arrow
+        if prev is not None and temp.next is not None:
+            erase_x = prev.shape.x + prev.shape.width
+            erase_y = prev.shape.y + (prev.shape.height // 2) - 10
+            pygame.draw.rect(screen, Colors.GREY, (erase_x, erase_y, 35, 20))
+
+            start_pos = (prev.shape.x + prev.shape.width // 2 + 25, prev.shape.y)
+            corner_pos_1 = (start_pos[0], prev.shape.y - (prev.shape.height // 2) - 20)
+            corner_pos_2 = (temp.next.shape.x + 10, temp.next.shape.y - temp.next.shape.height // 2 - 20)
+            end_pos = (temp.next.shape.x + 10, temp.next.shape.y)
+
+            # Draw Vertical Line (Up)
+            pygame.draw.line(screen, Colors.LIGHT_GREY, start_pos, corner_pos_1, 2)
+            # Draw Horizontal Line (Corner 1 to 2)
+            pygame.draw.line(screen, Colors.LIGHT_GREY, corner_pos_1, corner_pos_2, 2)
+            # Draw Horizontal Line (Right)
+            pygame.draw.line(screen, Colors.LIGHT_GREY, corner_pos_2, end_pos, 2)
+
+            # Arrowhead pointing Right
+            pygame.draw.polygon(screen, Colors.LIGHT_GREY, [
+                (end_pos[0] + 1, end_pos[1]),  # Tip of TEMP pointer (above HEAD)
+                (end_pos[0] - 7, end_pos[1] - 7),  # Left point
+                (end_pos[0] + 7, end_pos[1] - 7)  # Right point
+            ])
+
+            update_status_ui()
+            pygame.display.update()
+            pygame.time.delay(1000)
+
+
+        set_status("Deleting Node...", Colors.ORANGE, ">temp.next = None; del temp")
+
+        temp.next = None
+
+        erase_x = temp.shape.x + temp.shape.width
+        erase_y = temp.shape.y + (temp.shape.height // 2) - 10
+        pygame.draw.rect(screen, Colors.GREY, (erase_x, erase_y, 35, 20))
+
+        update_status_ui()
+        pygame.display.update()
+        pygame.time.delay(1000)
+
+        del temp
+        self.nodes.pop(pos - 1)
+        self.length -= 1
+
+        set_status("Realigning List...", Colors.ORANGE, "> Formatting UI")
+
+        for i in range(pos - 1, len(self.nodes)):
+            self.nodes[i].shape.x -= 125
+            # Update text rect position
+            self.nodes[i].text_rect = self.nodes[i].text.get_rect(center=self.nodes[i].shape.center)
+
+        # Update the 'currentPos' for next insertions
+        self.currentPos = (self.currentPos[0] - 125, self.currentPos[1])
+
+        set_status("Deletion Complete!", Colors.GREEN, "> Success")
+        update_status_ui()
+        pygame.display.update()
+        pygame.time.delay(1000)
+
     def destroyList(self, screen):
         if self.head is None:
             set_status("List is already Empty!", Colors.RED, "> if head is None: return")
@@ -659,7 +779,7 @@ class SLL:
         while self.head is not None:
             temp = self.head
 
-            draw_temp_on_head(temp)
+            draw_pointer_on_head(temp, "TEMP", Colors.ORANGE)
             update_status_ui()
             pygame.display.update()
             pygame.time.delay(300)
@@ -705,7 +825,8 @@ while running:
     screen.blit(title, (50, 40))
     screen.blit(cap_value_txt, (50, 115))
     screen.blit(value_txt, (50, 200))
-    screen.blit(pos_txt, (50, 285))  # New Pos Label
+    screen.blit(pos_txt_1, (50, 285))
+    screen.blit(pos_txt_2, (330, 285))
 
     # Buttons
     set_max_button.draw(screen)
@@ -715,11 +836,13 @@ while running:
     insert_head_button.draw(screen)
     insert_at_pos_button.draw(screen)
     destroy_button.draw(screen)
+    delete_at_pos_button.draw(screen)
 
     # Input Bars
     cap_bar.draw(screen)
     node_bar.draw(screen)
-    pos_bar.draw(screen)  # New Input Bar
+    pos_insert_bar.draw(screen)
+    pos_delete_bar.draw(screen)
 
     # List
     sll.drawList()
@@ -747,6 +870,9 @@ while running:
             if cap_value_txt != "" and 6 >= int(cap_bar.text) > 0:
                 sll.size = int(cap_bar.text)
                 sll.nodes.clear()
+                sll.currentPos = sll.initialPos[sll.size]
+                sll.length = 1
+                set_status("Capacity Updated!", Colors.GREEN, f"> size = {cap_bar.text}")
             elif cap_bar.text == "":
                 set_status("Capacity can't be empty!", Colors.RED, "> cap_value != ''")
             elif int(cap_bar.text) > 6:
@@ -761,18 +887,30 @@ while running:
         if destroy_button.is_clicked(event):
             sll.destroyList(screen)
         if insert_at_pos_button.is_clicked(event):
-            if pos_bar.text == "":
+            if pos_insert_bar.text == "":
                 set_status("Position can't be empty!", Colors.RED, "> ")
             elif node_bar.text == "":
                 set_status("Value can't be empty!", Colors.RED, "> ")
-            elif not isinstance(int(pos_bar.text), int):
+            elif not isinstance(int(pos_insert_bar.text), int):
                 set_status("Invalid Position!", Colors.RED, "> ")
             else:
-                sll.insertAtPos(node_bar.text, int(pos_bar.text), screen)
+                sll.insertAtPos(node_bar.text, int(pos_insert_bar.text), screen)
+        if delete_at_pos_button.is_clicked(event):
+            if pos_delete_bar.text == "":
+                set_status("Position can't be empty!", Colors.RED, "> ")
+            elif not pos_delete_bar.text.isdigit():
+                set_status("Pos must be a number!", Colors.RED, "> ")
+            elif sll.length == 1:
+                set_status("List is Empty!", Colors.RED, "> ")
+            elif int(pos_delete_bar.text) > sll.length - 1:
+                set_status("Invalid Position!", Colors.RED, "> ")
+            else:
+                sll.deleteFromPos(int(pos_delete_bar.text), screen)
 
         cap_bar.handle_input(event)
         node_bar.handle_input(event)
-        pos_bar.handle_input(event)  # Handle Pos Input
+        pos_insert_bar.handle_input(event)
+        pos_delete_bar.handle_input(event)
 
     update_status_ui()
 
