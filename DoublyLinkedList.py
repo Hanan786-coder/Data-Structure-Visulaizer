@@ -110,7 +110,7 @@ class DLLNode:
         self.shape = pygame.Rect(pos[0], pos[1], 90, 70)
         self.text = nodeFont.render(f"{data}", True, Colors.LIGHT_GREY)
 
-    def draw(self, screen, dll, highlight_color=Colors.TEAL, fill=False):
+    def draw(self, screen, dll, highlight_color=Colors.TEAL, fill=False, drawNULL= True):
         # Draw node box
         if fill:
              pygame.draw.rect(screen, highlight_color, self.shape, border_radius=2)
@@ -138,8 +138,8 @@ class DLLNode:
             end_y = self.next.shape.y + 20
             pygame.draw.line(screen, Colors.LIGHT_GREY, (start_x, start_y), (end_x, end_y), 2)
             pygame.draw.polygon(screen, Colors.LIGHT_GREY, [(end_x, end_y), (end_x-7, end_y-5), (end_x-7, end_y+5)])
-        else:
-            # NULL Next
+        elif self == dll.tail:
+            # NULL Next (always show for tail, or if drawNULL=True)
             null_x = start_x + 30
             pygame.draw.line(screen, Colors.LIGHT_GREY, (start_x, start_y), (null_x, start_y), 2)
             pygame.draw.polygon(screen, Colors.LIGHT_GREY, [(null_x, start_y), (null_x-7, start_y-5), (null_x-7, start_y+5)])
@@ -155,13 +155,15 @@ class DLLNode:
             end_y_prev = self.prev.shape.y + 50
             pygame.draw.line(screen, Colors.ORANGE, (start_x_prev, start_y_prev), (end_x_prev, end_y_prev), 2)
             pygame.draw.polygon(screen, Colors.ORANGE, [(end_x_prev, end_y_prev), (end_x_prev+7, end_y_prev-5), (end_x_prev+7, end_y_prev+5)])
-        else:
-            # NULL Prev
+        elif self == dll.head:
+            # NULL Prev (always show for head, or if drawNULL=True)
             null_x_prev = start_x_prev - 30
             pygame.draw.line(screen, Colors.ORANGE, (start_x_prev, start_y_prev), (null_x_prev, start_y_prev), 2)
             pygame.draw.polygon(screen, Colors.ORANGE, [(null_x_prev, start_y_prev), (null_x_prev+7, start_y_prev-5), (null_x_prev+7, start_y_prev+5)])
-            null_txt = paraFont.render("NULL", True, Colors.ORANGE)
-            screen.blit(null_txt, (null_x_prev - 45, start_y_prev - 10))
+            if drawNULL and self == dll.head:
+                null_txt = paraFont.render("NULL", True, Colors.ORANGE)
+                text_x = max(5, null_x_prev - 55)
+                screen.blit(null_txt, (text_x, start_y_prev - 10))
 
 
 # --- DOUBLY LINKED LIST CLASS ---
@@ -173,22 +175,31 @@ class DLL:
         self.length = 0
         self.nodes = [] 
         
-        # Shifted X to 130 to fit Left NULL on screen comfortably
-        self.initialPos = {
-            1: (130, 480), # If size 1, start here (not usually used for insert logic but for reset)
-            # Actually we use a calculation based on size or just increment
-        }
-        # Reset start position
-        self.start_x_coord = 130
+        node_width = 90
+        gap_between_nodes = 35
+        null_space = 30
+        left_margin = 30
+        
+        total_width_needed = (size * node_width) + ((size - 1) * gap_between_nodes) + null_space + left_margin
+        self.start_x_coord = max(30, (900 - total_width_needed) // 2 + left_margin)
         self.currentPos = (self.start_x_coord, 480)
 
-    def drawList(self):
+    def drawList(self, drawNULL=True):
         for node in self.nodes:
-            node.draw(screen, self)
+            node.draw(screen, self, drawNULL=drawNULL)
 
-    def _redraw(self):
+    def _recalculate_positions(self):
+        start_x = self.start_x_coord
+        y_pos = 480
+        for node in self.nodes:
+            node.shape.x = start_x
+            node.shape.y = y_pos
+            start_x += 125
+        self.currentPos = (start_x, y_pos)
+
+    def _redraw(self, drawNULL=True):
         pygame.draw.rect(screen, Colors.GREY, (0, 370, 900, 330))
-        self.drawList()
+        self.drawList(drawNULL=drawNULL)
         update_status_ui()
         pygame.display.update()
 
@@ -212,14 +223,14 @@ class DLL:
         else:
             # 1. Update Logical Next
             self.tail.next = newNode
-            self._redraw()
             set_status("Linking Next...", Colors.ORANGE, "> tail.next = newNode")
+            self._redraw()
             pygame.time.delay(1000)
             
             # 2. Update Logical Prev
             newNode.prev = self.tail
-            self._redraw()
             set_status("Linking Prev...", Colors.ORANGE, "> newNode.prev = tail")
+            self._redraw()
             pygame.time.delay(1000)
             
             self.tail = newNode
@@ -240,8 +251,11 @@ class DLL:
             pygame.draw.rect(screen, Colors.GREY, (0, 370, 900, 280))
             for node in self.nodes:
                 node.shape.x += 125
-            self.drawList()
+            self.drawList(drawNULL=False)
             update_status_ui()
+            # Erase the NULL text
+            erase_rect = pygame.Rect(self.head.shape.x - 90, self.head.shape.y + 40, 60, 40)
+            pygame.draw.rect(screen, Colors.GREY, erase_rect)
             pygame.display.update()
             pygame.time.delay(1000)
 
@@ -253,7 +267,7 @@ class DLL:
         self.nodes.insert(0, newNode)
         self.length += 1
         self.currentPos = (self.currentPos[0] + 125, self.currentPos[1])
-        self._redraw()
+        self._redraw(drawNULL=False)
         pygame.time.delay(1000)
 
         if self.head is None:
@@ -262,12 +276,12 @@ class DLL:
         else:
             newNode.next = self.head
             set_status("Linking Forward...", Colors.ORANGE, "> newNode.next = head")
-            self._redraw()
+            self._redraw(drawNULL=False)
             pygame.time.delay(1000)
             
             self.head.prev = newNode
             set_status("Linking Backward...", Colors.ORANGE, "> head.prev = newNode")
-            self._redraw()
+            self._redraw(drawNULL=False)
             pygame.time.delay(1000)
             
             self.head = newNode
@@ -405,16 +419,7 @@ class DLL:
         self.nodes.insert(pos - 1, newNode)
         self.length += 1
         
-        # Recalculate positions
-        start_x = self.start_x_coord
-        y_pos = 480
-        
-        for node in self.nodes:
-            node.shape.x = start_x
-            node.shape.y = y_pos
-            start_x += 125
-        self.currentPos = (start_x, y_pos)
-        
+        self._recalculate_positions()
         self._redraw()
         erase_pointer(screen, temp, "TEMP")
         set_status("Insertion Complete!", Colors.GREEN, "> Success")
@@ -441,15 +446,7 @@ class DLL:
         self.length -= 1
         self.nodes.pop(0)
         
-        # Shift back visually
-        for node in self.nodes:
-            node.shape.x -= 125
-        
-        if len(self.nodes) > 0:
-            self.currentPos = (self.nodes[-1].shape.x + 125, 480)
-        else:
-            self.currentPos = (self.start_x_coord, 480)
-            
+        self._recalculate_positions()
         self._redraw()
         set_status("Head Deleted!", Colors.GREEN, "> Success")
         pygame.time.delay(500)
@@ -470,7 +467,7 @@ class DLL:
         self.nodes.pop()
         self.length -= 1
         
-        self.currentPos = (self.tail.shape.x + 125, self.tail.shape.y)
+        self._recalculate_positions()
         self._redraw()
         set_status("Tail Deleted!", Colors.GREEN, "> Success")
         pygame.time.delay(500)
@@ -532,10 +529,7 @@ class DLL:
         self.nodes.pop(pos-1)
         self.length -= 1
         
-        # Realign
-        for i in range(pos - 1, len(self.nodes)):
-            self.nodes[i].shape.x -= 125
-        self.currentPos = (self.currentPos[0] - 125, self.currentPos[1])
+        self._recalculate_positions()
         
         self._redraw()
         set_status("Deleted!", Colors.GREEN, "> Success")
