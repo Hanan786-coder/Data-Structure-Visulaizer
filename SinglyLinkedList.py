@@ -1,5 +1,4 @@
 import pygame
-
 from button_template import Button
 import Colors
 
