@@ -152,9 +152,9 @@ class InputBar:
                 self.text = self.text[:len(self.text) - 1]
             elif event.key == pygame.K_RETURN:
                 pass
-            else:  # any other key
+            elif event.unicode.isprintable():
                 if len(self.text) < self.max_chars:
-                    self.text += str(event.unicode)
+                    self.text += event.unicode
 
         self.text_rendered = self.input_font.render(self.text, True, Colors.LIGHT_GREY)
 
@@ -236,28 +236,6 @@ def draw_pointer_on_head(node, text, color):
 
     lbl_temp = subFont.render(f"{text}", True, color)
     screen.blit(lbl_temp, (temp_x - lbl_temp.get_width() // 2, temp_y - 65))
-
-
-# Text Input
-cap_bar = InputBar(100, 145, 130, 40, Colors.BLACK)
-cap_bar.text = "6"
-node_bar = InputBar(100, 230, 130, 40, Colors.BLACK, 4)
-pos_insert_bar = InputBar(100, 315, 130, 40, Colors.BLACK, 2)
-pos_delete_bar = InputBar(380, 315, 130, 40, Colors.BLACK, 2)
-search_val_bar = InputBar(660, 315, 120, 40, Colors.BLACK, 2)
-
-
-# Buttons
-set_max_button = Button(240, 145, 120, 40, "Set Max", None, 18)
-insert_tail_button = Button(240, 230, 120, 40, "Insert Tail", None, 18)
-insert_head_button = Button(370, 230, 120, 40, "Insert Head", None, 18)
-insert_at_pos_button = Button(240, 315, 120, 40, "Insert", None, 18)
-delete_head_button = Button(500, 170, 130, 50, "Delete Head", None, 18)
-delete_tail_button = Button(640, 170, 130, 50, "Delete Tail", None, 18)
-destroy_button = Button(780, 170, 130, 50, "Destroy List", None, 18)
-delete_at_pos_button = Button(520, 315, 120, 40, "Delete", None, 18)
-search_button = Button(790, 315, 120, 40, "Search", None, 18)
-
 
 # Linked Lists class
 class SLL:
@@ -873,117 +851,131 @@ class SLL:
         set_status("List Cleared!", Colors.GREEN, "> New Max Capacity Set")
         update_status_ui()
         pygame.display.update()
+def main():
+    cap_bar = InputBar(100, 145, 130, 40, Colors.BLACK)
+    cap_bar.text = "6"
+    node_bar = InputBar(100, 230, 130, 40, Colors.BLACK, 4)
+    pos_insert_bar = InputBar(100, 315, 130, 40, Colors.BLACK, 2)
+    pos_delete_bar = InputBar(380, 315, 130, 40, Colors.BLACK, 2)
+    search_val_bar = InputBar(660, 315, 120, 40, Colors.BLACK, 2)
 
-# Main Loop
-running = True
-clock = pygame.time.Clock()
-sll = SLL(6)
-while running:
-    # 1. CLEAR THE SCREEN FIRST
-    screen.fill(Colors.GREY)
+    set_max_button = Button(240, 145, 120, 40, "Set Max", None, 18)
+    insert_tail_button = Button(240, 230, 120, 40, "Insert Tail", None, 18)
+    insert_head_button = Button(370, 230, 120, 40, "Insert Head", None, 18)
+    insert_at_pos_button = Button(240, 315, 120, 40, "Insert", None, 18)
+    delete_head_button = Button(500, 170, 130, 50, "Delete Head", None, 18)
+    delete_tail_button = Button(640, 170, 130, 50, "Delete Tail", None, 18)
+    destroy_button = Button(780, 170, 130, 50, "Destroy List", None, 18)
+    delete_at_pos_button = Button(520, 315, 120, 40, "Delete", None, 18)
+    search_button = Button(790, 315, 120, 40, "Search", None, 18)
 
-    # UI
-    # Texts
-    screen.blit(title, (50, 40))
-    screen.blit(cap_value_txt, (100, 115))
-    screen.blit(value_txt_1, (100, 200))
-    screen.blit(value_txt_2, (660, 285))
-    screen.blit(pos_txt_1, (100, 285))
-    screen.blit(pos_txt_2, (380, 285))
+    sll = SLL(6)
+    running = True
+    clock = pygame.time.Clock()
 
-    # Buttons
-    set_max_button.draw(screen)
-    delete_head_button.draw(screen)
-    insert_tail_button.draw(screen)
-    delete_tail_button.draw(screen)
-    insert_head_button.draw(screen)
-    insert_at_pos_button.draw(screen)
-    destroy_button.draw(screen)
-    delete_at_pos_button.draw(screen)
-    search_button.draw(screen)
+    while running:
+        screen.fill(Colors.GREY)
+        
+        screen.blit(title, (50, 40))
+        screen.blit(cap_value_txt, (100, 115))
+        screen.blit(value_txt_1, (100, 200))
+        screen.blit(value_txt_2, (660, 285))
+        screen.blit(pos_txt_1, (100, 285))
+        screen.blit(pos_txt_2, (380, 285))
 
-    # Input Bars
-    cap_bar.draw(screen)
-    node_bar.draw(screen)
-    pos_insert_bar.draw(screen)
-    pos_delete_bar.draw(screen)
-    search_val_bar.draw(screen)
+        set_max_button.draw(screen)
+        delete_head_button.draw(screen)
+        insert_tail_button.draw(screen)
+        delete_tail_button.draw(screen)
+        insert_head_button.draw(screen)
+        insert_at_pos_button.draw(screen)
+        destroy_button.draw(screen)
+        delete_at_pos_button.draw(screen)
+        search_button.draw(screen)
 
-    # List
-    sll.drawList()
+        cap_bar.draw(screen)
+        node_bar.draw(screen)
+        pos_insert_bar.draw(screen)
+        pos_delete_bar.draw(screen)
+        search_val_bar.draw(screen)
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
+        sll.drawList()
 
-        if insert_tail_button.is_clicked(event):
-            if node_bar.text != "":
-                sll.insertAtTail(node_bar.text, screen)
-                node_bar.text = ""
-            else:
-                set_status("Value Empty!", Colors.RED, "> if text == '': return")
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
 
-        # New Insert Head Logic
-        if insert_head_button.is_clicked(event):
-            if node_bar.text != "":
-                sll.insertAtHead(node_bar.text, screen)
-                node_bar.text = ""
-            else:
-                set_status("Value Empty!", Colors.RED, "> Enter Value to Insert")
+            if insert_tail_button.is_clicked(event):
+                if node_bar.text != "":
+                    sll.insertAtTail(node_bar.text, screen)
+                    node_bar.text = ""
+                else:
+                    set_status("Value Empty!", Colors.RED, "> if text == '': return")
 
-        if set_max_button.is_clicked(event):
-            if cap_value_txt != "" and 6 >= int(cap_bar.text) > 0:
-                sll.size = int(cap_bar.text)
-                sll.nodes.clear()
-                sll.currentPos = sll.initialPos[sll.size]
-                sll.length = 1
-                set_status("Capacity Updated!", Colors.GREEN, f"> size = {cap_bar.text}")
-            elif cap_bar.text == "":
-                set_status("Capacity can't be empty!", Colors.RED, "> cap_value != ''")
-            elif int(cap_bar.text) > 6:
-                set_status("Capacity should be < 6", Colors.RED, "> ")
-            else:
-                set_status("Invalid Capacity!", Colors.RED, "> ")
+            if insert_head_button.is_clicked(event):
+                if node_bar.text != "":
+                    sll.insertAtHead(node_bar.text, screen)
+                    node_bar.text = ""
+                else:
+                    set_status("Value Empty!", Colors.RED, "> Enter Value to Insert")
 
-        if delete_head_button.is_clicked(event):
-            sll.deleteHead(screen)
-        if delete_tail_button.is_clicked(event):
-            sll.deleteTail(screen)
-        if destroy_button.is_clicked(event):
-            sll.destroyList(screen)
-        if insert_at_pos_button.is_clicked(event):
-            if pos_insert_bar.text == "":
-                set_status("Position can't be empty!", Colors.RED, "> ")
-            elif node_bar.text == "":
-                set_status("Value can't be empty!", Colors.RED, "> ")
-            elif not pos_insert_bar.text.isdigit():
-                set_status("Invalid Position!", Colors.RED, "> ")
-            else:
-                sll.insertAtPos(node_bar.text, int(pos_insert_bar.text), screen)
-        if delete_at_pos_button.is_clicked(event):
-            if pos_delete_bar.text == "":
-                set_status("Position can't be empty!", Colors.RED, "> ")
-            elif not pos_delete_bar.text.isdigit():
-                set_status("Pos must be a number!", Colors.RED, "> ")
-            elif sll.length == 1:
-                set_status("List is Empty!", Colors.RED, "> ")
-            elif int(pos_delete_bar.text) > sll.length - 1:
-                set_status("Invalid Position!", Colors.RED, "> ")
-            else:
-                sll.deleteFromPos(int(pos_delete_bar.text), screen)
-        if search_button.is_clicked(event):
-            if search_val_bar.text == "":
-                set_status("Value can't be empty!", Colors.RED, "> ")
-            else:
-                sll.search(search_val_bar.text, screen)
+            if set_max_button.is_clicked(event):
+                if cap_value_txt != "" and 6 >= int(cap_bar.text) > 0:
+                    sll.size = int(cap_bar.text)
+                    sll.nodes.clear()
+                    sll.currentPos = sll.initialPos[sll.size]
+                    sll.length = 1
+                    set_status("Capacity Updated!", Colors.GREEN, f"> size = {cap_bar.text}")
+                elif cap_bar.text == "":
+                    set_status("Capacity can't be empty!", Colors.RED, "> cap_value != ''")
+                elif int(cap_bar.text) > 6:
+                    set_status("Capacity should be < 6", Colors.RED, "> ")
+                else:
+                    set_status("Invalid Capacity!", Colors.RED, "> ")
 
-        cap_bar.handle_input(event)
-        node_bar.handle_input(event)
-        pos_insert_bar.handle_input(event)
-        pos_delete_bar.handle_input(event)
-        search_val_bar.handle_input(event)
+            if delete_head_button.is_clicked(event):
+                sll.deleteHead(screen)
+            if delete_tail_button.is_clicked(event):
+                sll.deleteTail(screen)
+            if destroy_button.is_clicked(event):
+                sll.destroyList(screen)
+            if insert_at_pos_button.is_clicked(event):
+                if pos_insert_bar.text == "":
+                    set_status("Position can't be empty!", Colors.RED, "> ")
+                elif node_bar.text == "":
+                    set_status("Value can't be empty!", Colors.RED, "> ")
+                elif not pos_insert_bar.text.isdigit():
+                    set_status("Invalid Position!", Colors.RED, "> ")
+                else:
+                    sll.insertAtPos(node_bar.text, int(pos_insert_bar.text), screen)
+            if delete_at_pos_button.is_clicked(event):
+                if pos_delete_bar.text == "":
+                    set_status("Position can't be empty!", Colors.RED, "> ")
+                elif not pos_delete_bar.text.isdigit():
+                    set_status("Pos must be a number!", Colors.RED, "> ")
+                elif sll.length == 1:
+                    set_status("List is Empty!", Colors.RED, "> ")
+                elif int(pos_delete_bar.text) > sll.length - 1:
+                    set_status("Invalid Position!", Colors.RED, "> ")
+                else:
+                    sll.deleteFromPos(int(pos_delete_bar.text), screen)
+            if search_button.is_clicked(event):
+                if search_val_bar.text == "":
+                    set_status("Value can't be empty!", Colors.RED, "> ")
+                else:
+                    sll.search(search_val_bar.text, screen)
 
-    update_status_ui()
+            cap_bar.handle_input(event)
+            node_bar.handle_input(event)
+            pos_insert_bar.handle_input(event)
+            pos_delete_bar.handle_input(event)
+            search_val_bar.handle_input(event)
 
-    pygame.display.update()
-    clock.tick(60)
+        update_status_ui()
+        pygame.display.update()
+        clock.tick(60)
+
+    pygame.quit()
+
+if __name__ == "__main__":
+    main()
