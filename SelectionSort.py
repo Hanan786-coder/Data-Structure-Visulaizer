@@ -435,7 +435,7 @@ def main():
     input_box = InputBox(20, 145, 190, 35, text="")
     btn_load = Button(220, 145, 60, 35, "Load", btn_load_action)
 
-    btn_mode = Button(20, 185, 260, 35, "Min↑ / Max↓", btn_mode_action, color=Colors.ORANGE)
+    btn_mode = Button(20, 185, 260, 35, "Min ↓", btn_mode_action, color=Colors.ORANGE)
 
     btn_prev = Button(20, 240, 80, 40, "Prev", btn_prev_action)
     btn_play = Button(110, 240, 80, 40, "Play/||", btn_play_action)
@@ -480,6 +480,8 @@ def main():
         screen.blit(font_small.render("1. Set Array Size (2-8):", True, TEXT_COLOR), (20, 55))
         screen.blit(font_small.render("2. Manual Input : (E.g: 1,2,3,4,5)", True, TEXT_COLOR), (20, 125))
         screen.blit(font_small.render("3. Controls:", True, TEXT_COLOR), (20, 220))
+
+        btn_mode.text = "Max ↑" if viz.sort_mode == "max" else "Min ↓"
 
         for el in ui_elements:
             el.draw(screen)
