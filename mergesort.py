@@ -17,6 +17,7 @@ NODE_DEFAULT = Colors.TEAL
 NODE_SPLIT = (70, 130, 180)  # Steel Blue (Just split)
 NODE_COMPARE = (255, 215, 0)  # Gold
 NODE_MERGING = (155, 89, 182)  # Purple (Moving up)
+
 NODE_SORTED = (46, 204, 113)  # Green
 
 TEXT_COLOR = Colors.LIGHT_GREY
@@ -158,6 +159,7 @@ class MergeSortTreeVisualizer:
         self.finished = False
         self.status_msg = "Welcome"
         self.status_color = TEXT_COLOR
+        self.sort_mode = "asc"
 
         # State tracking for generation
         # "active_chunks" is a list of dictionaries:
@@ -195,6 +197,11 @@ class MergeSortTreeVisualizer:
         except ValueError:
             self.set_msg("Error: Numbers only", ERROR_COLOR)
 
+    def toggle_sort_mode(self):
+        self.sort_mode = "desc" if self.sort_mode == "asc" else "asc"
+        if self.initial_array:
+            self.precompute_history()
+
     def save_state(self, desc):
         # Deep copy the chunks to save history
         snapshot_chunks = []
@@ -225,7 +232,8 @@ class MergeSortTreeVisualizer:
             'abs_index': 0  # Starting absolute index on the x-axis grid
         }]
 
-        self.save_state("Start")
+        mode_label = "Descending" if self.sort_mode == "desc" else "Ascending"
+        self.save_state(f"Start (Sort: {mode_label})")
 
         # Recursion
         self.split_merge_recursive(self.initial_array, 0, 0)
@@ -303,7 +311,10 @@ class MergeSortTreeVisualizer:
             right_chunk['colors'][j] = NODE_COMPARE
             self.save_state(f"Comparing {sorted_left[i]} vs {sorted_right[j]}")
 
-            if sorted_left[i] < sorted_right[j]:
+            is_desc = self.sort_mode == "desc"
+            condition = sorted_left[i] > sorted_right[j] if is_desc else sorted_left[i] < sorted_right[j]
+            
+            if condition:
                 merged.append(sorted_left[i])
                 left_chunk['colors'][i] = NODE_MERGING
                 i += 1
@@ -312,7 +323,8 @@ class MergeSortTreeVisualizer:
                 right_chunk['colors'][j] = NODE_MERGING
                 j += 1
 
-            self.save_state("Moving smaller element up")
+            move_direction = "larger" if is_desc else "smaller"
+            self.save_state(f"Moving {move_direction} element up")
 
             # Reset colors
             if i < len(left_chunk['colors']): left_chunk['colors'][i] = NODE_DEFAULT
@@ -448,6 +460,9 @@ def btn_rand_action():
 def btn_load_action(): viz.load_manual(input_box.text)
 
 
+def btn_sort_mode_action(): viz.toggle_sort_mode()
+
+
 def btn_prev_action(): viz.prev_step(); viz.playing = False
 
 
@@ -463,15 +478,16 @@ def btn_reset_action(): viz.reset()
 # Layout
 size_input = InputBox(20, 75, 50, 35, text="6", numeric_only=True, max_chars=1)
 btn_rand = Button(80, 75, 200, 35, "Randomize (Size 2-8)", btn_rand_action)
-input_box = InputBox(20, 145, 190, 35, text="")
-btn_load = Button(220, 145, 60, 35, "Load", btn_load_action)
+input_box = InputBox(20, 128, 190, 35, text="")
+btn_load = Button(220, 128, 60, 35, "Load", btn_load_action)
+btn_sort_mode = Button(20, 185, 260, 35, "Sort: Ascending ↑", btn_sort_mode_action)
 btn_prev = Button(20, 240, 80, 40, "Prev", btn_prev_action)
 btn_play = Button(110, 240, 80, 40, "Play/||", btn_play_action)
 btn_next = Button(200, 240, 80, 40, "Next", btn_next_action)
 btn_reset = Button(20, 290, 260, 35, "Reset", btn_reset_action, color=Colors.ORANGE)
 speed_slider = Slider(20, 360, 260, 50, 1000, 500)
 
-ui_elements = [size_input, btn_rand, input_box, btn_load, btn_prev, btn_play, btn_next, btn_reset, speed_slider]
+ui_elements = [size_input, btn_rand, input_box, btn_load, btn_sort_mode, btn_prev, btn_play, btn_next, btn_reset, speed_slider]
 
 viz.generate_random(6)
 
@@ -486,10 +502,10 @@ while running:
         input_box.handle_event(event)
         speed_slider.handle_event(event)
         if event.type == pygame.MOUSEBUTTONDOWN:
-            for btn in [btn_rand, btn_load, btn_prev, btn_play, btn_next, btn_reset]:
+            for btn in [btn_rand, btn_load, btn_sort_mode, btn_prev, btn_play, btn_next, btn_reset]:
                 btn.handle_event(event)
         if event.type == pygame.MOUSEMOTION:
-            for btn in [btn_rand, btn_load, btn_prev, btn_play, btn_next, btn_reset]:
+            for btn in [btn_rand, btn_load, btn_sort_mode, btn_prev, btn_play, btn_next, btn_reset]:
                 btn.handle_event(event)
 
     screen.fill(BG_COLOR)
@@ -501,8 +517,11 @@ while running:
 
     screen.blit(font_header.render("Merge Sort", True, Colors.TEAL), (20, 20))
     screen.blit(font_small.render("1. Array Size (2-8):", True, TEXT_COLOR), (20, 55))
-    screen.blit(font_small.render("2. Manual Input :", True, TEXT_COLOR), (20, 125))
-    screen.blit(font_small.render("3. Controls:", True, TEXT_COLOR), (20, 220))
+    screen.blit(font_small.render("2. Manual Input :", True, TEXT_COLOR), (20, 108))
+    screen.blit(font_small.render("3. Sort Order:", True, TEXT_COLOR), (20, 165))
+    screen.blit(font_small.render("4. Controls:", True, TEXT_COLOR), (20, 220))
+
+    btn_sort_mode.text = "Sort: Descending ↓" if viz.sort_mode == "desc" else "Sort: Ascending ↑"
 
     for el in ui_elements: el.draw(screen)
 
