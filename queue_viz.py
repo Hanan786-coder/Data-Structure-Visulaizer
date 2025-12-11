@@ -1,10 +1,10 @@
 import pygame
 import sys
-import Colors
+import Colors  # Your custom colors file
 
 # --- Configuration ---
 SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 600
+SCREEN_HEIGHT = 700  # Updated to 700
 
 # Map Colors
 BACKGROUND_COLOR = Colors.GREY
@@ -119,7 +119,7 @@ peek_timer_start = 0
 
 # UI
 val_input = InputBox(50, 180, 140, 40, text="", max_chars=9)
-cap_input = InputBox(50, 100, 80, 40, text="6", is_numeric_only=True, max_chars                                                                                                                                                                     =2)
+cap_input = InputBox(50, 100, 80, 40, text="6", is_numeric_only=True, max_chars=2)
 
 
 def set_status(msg, color, logic_msg=""):
@@ -247,7 +247,8 @@ while running:
 
     # 2. Visualization
     container_width = capacity * (ELEM_WIDTH + SPACING) + SPACING
-    container_y = 400
+    # Adjusted vertical position for 700px height
+    container_y = 450
 
     # Guidelines
     pygame.draw.line(screen, CONTAINER_COLOR,
