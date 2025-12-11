@@ -1,7 +1,7 @@
 import pygame
 import sys
 import random
-import Colors  # Your custom colors file
+import Colors
 
 # --- Configuration ---
 SCREEN_WIDTH = 1000
@@ -13,8 +13,8 @@ BG_COLOR = Colors.GREY
 SIDEBAR_COLOR = (30, 30, 35)
 NODE_COLOR = Colors.TEAL
 COMPARE_COLOR = (255, 215, 0)  # Gold
-MIN_COLOR = (255, 87, 87)  # Red (Current minimum)
-SWAP_COLOR = (155, 89, 182)  # Purple
+MIN_COLOR = (255, 87, 87)      # Red (Current minimum)
+SWAP_COLOR = (155, 89, 182)    # Purple
 SORTED_COLOR = (46, 204, 113)  # Green
 CURRENT_COLOR = (0, 173, 181)  # Teal (Current position)
 TEXT_COLOR = Colors.LIGHT_GREY
@@ -29,11 +29,6 @@ NODE_H = 45
 GAP = 30
 START_Y = 300
 
-pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Selection Sort Visualization")
-clock = pygame.time.Clock()
-
 
 # --- Fonts ---
 def get_font(size, bold=False):
@@ -47,7 +42,7 @@ font_header = get_font(28, bold=True)
 font_ui = get_font(16)
 font_val = get_font(20, bold=True)
 font_small = get_font(14)
-font_logic = get_font(22)  # Slightly larger for the logic readout
+font_logic = get_font(22)
 
 
 # --- UI Components ---
@@ -72,7 +67,8 @@ class Button:
             self.is_hovered = self.rect.collidepoint(event.pos)
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.is_hovered and self.func:
-                self.func()
+                return self.func() # Return result (e.g., "back")
+        return None
 
 
 class InputBox:
@@ -393,42 +389,31 @@ class SelectionSortVisualizer:
                 ])
 
 
-# --- App Instance ---
-viz = SelectionSortVisualizer()
+# --- Main Run Function ---
+def run(screen):
+    clock = pygame.time.Clock()
+    viz = SelectionSortVisualizer()
 
+    # --- Actions (Defined internally to access viz and scope) ---
+    def btn_rand_action():
+        try:
+            s = int(size_input.text)
+            viz.generate_random(s)
+        except ValueError:
+            viz.set_msg("Size must be a number", ERROR_COLOR)
 
-# --- Controls setup ---
-def btn_rand_action():
-    try:
-        s = int(size_input.text)
-        viz.generate_random(s)
-    except ValueError:
-        viz.set_msg("Size must be a number", ERROR_COLOR)
+    def btn_load_action():
+        if viz.load_manual(input_box.text):
+            input_box.text = ""
 
+    def btn_prev_action(): viz.prev_step(); viz.playing = False
+    def btn_play_action(): viz.toggle_play()
+    def btn_next_action(): viz.next_step(); viz.playing = False
+    def btn_reset_action(): viz.reset()
+    def btn_mode_action(): viz.toggle_sort_mode()
+    def go_back(): return "back"
 
-def btn_load_action():
-    if viz.load_manual(input_box.text):
-        input_box.text = ""
-
-
-def btn_prev_action(): viz.prev_step(); viz.playing = False
-
-
-def btn_play_action(): viz.toggle_play()
-
-
-def btn_next_action(): viz.next_step(); viz.playing = False
-
-
-def btn_reset_action(): viz.reset()
-
-
-def btn_mode_action(): viz.toggle_sort_mode()
-
-
-def main():
-    global viz, size_input, input_box, btn_load, btn_mode, btn_rand, btn_prev, btn_play, btn_next, btn_reset, speed_slider, ui_elements
-    
+    # --- UI Layout ---
     size_input = InputBox(20, 75, 50, 35, text="5", numeric_only=True, max_chars=1)
     btn_rand = Button(80, 75, 200, 35, "Randomize (Size 2-8)", btn_rand_action)
 
@@ -442,9 +427,13 @@ def main():
     btn_next = Button(200, 240, 80, 40, "Next", btn_next_action)
     btn_reset = Button(20, 290, 260, 35, "Reset", btn_reset_action, color=Colors.ORANGE)
 
+    btn_back = Button(900, 15, 80, 40, "← Back", go_back, color=Colors.ORANGE)
+
     speed_slider = Slider(20, 360, 260, 50, 1000, 500)
 
-    ui_elements = [size_input, btn_rand, input_box, btn_load, btn_mode, btn_prev, btn_play, btn_next, btn_reset, speed_slider]
+    # Group UI Elements for Event Loop
+    ui_elements = [size_input, btn_rand, input_box, btn_load, btn_mode, 
+                   btn_prev, btn_play, btn_next, btn_reset, btn_back, speed_slider]
 
     viz.generate_random(5)
 
@@ -454,26 +443,34 @@ def main():
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                return "quit"
 
             size_input.handle_event(event)
             input_box.handle_event(event)
             speed_slider.handle_event(event)
 
             if event.type == pygame.MOUSEBUTTONDOWN:
-                for btn in [btn_rand, btn_load, btn_mode, btn_prev, btn_play, btn_next, btn_reset]:
-                    btn.handle_event(event)
+                for btn in ui_elements:
+                    if isinstance(btn, Button):
+                        result = btn.handle_event(event)
+                        if result == "back":
+                            return "back"
 
             if event.type == pygame.MOUSEMOTION:
-                for btn in [btn_rand, btn_load, btn_mode, btn_prev, btn_play, btn_next, btn_reset]:
-                    btn.handle_event(event)
+                for btn in ui_elements:
+                    if isinstance(btn, Button):
+                        btn.handle_event(event)
+                    elif isinstance(btn, Slider):
+                        btn.handle_event(event)
 
         screen.fill(BG_COLOR)
 
+        # Sidebar BG
         sidebar_rect = pygame.Rect(0, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
         pygame.draw.rect(screen, SIDEBAR_COLOR, sidebar_rect)
         pygame.draw.line(screen, Colors.TEAL, (SIDEBAR_WIDTH, 0), (SIDEBAR_WIDTH, SCREEN_HEIGHT), 2)
 
+        # Labels
         title = font_header.render("Selection Sort", True, Colors.TEAL)
         screen.blit(title, (20, 20))
 
@@ -481,14 +478,18 @@ def main():
         screen.blit(font_small.render("2. Manual Input : (E.g: 1,2,3,4,5)", True, TEXT_COLOR), (20, 125))
         screen.blit(font_small.render("3. Controls:", True, TEXT_COLOR), (20, 220))
 
-        btn_mode.text = "Max ↑" if viz.sort_mode == "max" else "Min ↓"
+        # Dynamic Button Text
+        btn_mode.text = "Mode: Desc" if viz.sort_mode == "max" else "Mode: Asc"
 
+        # Draw UI
         for el in ui_elements:
             el.draw(screen)
 
+        # Status
         status_surf = font_ui.render(viz.status_msg, True, viz.status_color)
         screen.blit(status_surf, (20, 400))
 
+        # Stats
         pygame.draw.line(screen, (50, 50, 50), (20, 430), (280, 430), 1)
         screen.blit(font_val.render("Statistics", True, TEXT_COLOR), (20, 440))
 
@@ -512,6 +513,7 @@ def main():
 
         viz.draw_viz(screen)
 
+        # Legend
         leg_y = 645
         leg_x = SIDEBAR_WIDTH + 50
 
@@ -532,10 +534,4 @@ def main():
         pygame.display.flip()
         clock.tick(60)
 
-    pygame.quit()
-
-
-if __name__ == "__main__":
-    main()
-    sys.exit()
-
+    return "back"

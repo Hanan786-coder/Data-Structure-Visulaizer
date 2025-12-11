@@ -1,21 +1,18 @@
 import pygame
 import sys
 import math
+import Colors
 
 # -------------------------------------------------------------------------
 # CONFIGURATION & CONSTANTS
 # -------------------------------------------------------------------------
 
-pygame.init()
-
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 700
-SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Min Heap Visualizer")
 
 # 🔷 COLORS
 ORANGE = (255, 108, 12)       # Title & Highlight
-GREY_BG = (57, 62, 70)        # Dark Background
+GREY_BG = Colors.GREY         # Dark Background
 TEAL = (0, 173, 181)          # Buttons & Nodes
 TEAL_HOVER = (0, 200, 210)    # Button Hover
 BLACK = (43, 40, 49)          # Input Box BG
@@ -46,14 +43,16 @@ font_node = get_font(14)
 # -------------------------------------------------------------------------
 
 class Button:
-    def __init__(self, x, y, w, h, text, action_code):
+    def __init__(self, x, y, w, h, text, action_code, color=TEAL):
         self.rect = pygame.Rect(x, y, w, h)
         self.text = text
         self.action_code = action_code
+        self.base_color = color
+        self.hover_color = TEAL_HOVER if color == TEAL else ORANGE
         self.is_hovered = False
 
     def draw(self, surface):
-        color = TEAL_HOVER if self.is_hovered else TEAL
+        color = self.hover_color if self.is_hovered else self.base_color
         pygame.draw.rect(surface, color, self.rect, border_radius=8)
 
         txt_surf = font_ui.render(self.text, True, LIGHT_GREY)
@@ -82,7 +81,7 @@ class InputBox:
                 self.active = not self.active
             else:
                 self.active = False
-            self.color = TEAL_HOVER if self.active else TEAL
+            self.color = WHITE if self.active else TEAL
             
         if event.type == pygame.KEYDOWN:
             if self.active:
@@ -101,11 +100,8 @@ class InputBox:
                             self.text += event.unicode
 
     def draw(self, surface):
-        # Draw background 
         pygame.draw.rect(surface, BLACK, self.rect, border_radius=6)
         pygame.draw.rect(surface, self.color, self.rect, 2, border_radius=6)
-        
-        # Draw Text
         txt_surface = font_ui.render(self.text, True, WHITE)
         surface.blit(txt_surface, (self.rect.x + 10, self.rect.y + 10))
 
@@ -136,11 +132,10 @@ class MinHeap:
         if len(self.heap) >= self.capacity:
             return False, f"Heap Full! Max capacity ({self.capacity}) reached."
         
-        # Convert to Integer so 2 < 10
         try:
             val = int(val_str)
         except ValueError:
-            val = val_str 
+            return False, "Please enter a valid integer."
 
         self.heap.append(val)
         index = len(self.heap) - 1
@@ -170,7 +165,7 @@ class MinHeap:
         l = self.left(i)
         r = self.right(i)
         
-        # MIN HEAP LOGIC: Find smallest among Root, Left, Right
+        # Find smallest among Root, Left, Right
         if l < len(self.heap) and self.heap[l] < self.heap[smallest]:
             smallest = l
             
@@ -190,43 +185,50 @@ class MinHeap:
         self.heap = []
 
 # -------------------------------------------------------------------------
-# MAIN VISUALIZER
+# MAIN VISUALIZER RUN FUNCTION
 # -------------------------------------------------------------------------
 
-class Visualizer:
-    def __init__(self):
-        self.pq = MinHeap(capacity=15)
-        
-        # --- UI LAYOUT ---
-        
-        # 1. Capacity Controls
-        self.input_cap = InputBox(50, 90, 80, 40, text="15", numeric_only=True, max_chars=2)
-        btn_set = Button(140, 90, 100, 40, "Set Cap", "SET_CAP")
-        
-        # 2. Main Inputs
-        y_op = 160
-        self.input_val = InputBox(50, y_op, 200, 40, max_chars=10)
-        
-        # Buttons
-        self.buttons = [
-            btn_set,
-            Button(270, y_op, 100, 40, "Insert", "INS"),
-            Button(390, y_op, 120, 40, "Extract Min", "EXT"), # Changed to Extract Min
-            Button(530, y_op, 100, 40, "Peek", "PEEK"),
-            Button(650, y_op, 100, 40, "Clear", "CLR")
-        ]
-        
-        # State
-        self.status_msg = "Min Heap Ready."
-        self.msg_color = WHITE
-        self.logic_msg = "Waiting for operation..."
-        
-        # Visuals
-        self.peek_highlight = False
-        self.peek_timer = 0
-        self.node_positions = self.generate_tree_layout()
+def run(SCREEN):
+    clock = pygame.time.Clock()
+    pq = MinHeap(capacity=15)
+    
+    # State Dictionary
+    state = {
+        "status_msg": "Min Heap Ready.",
+        "msg_color": WHITE,
+        "logic_msg": "Waiting for operation...",
+        "peek_highlight": False,
+        "peek_timer": 0
+    }
+    
+    # --- UI LAYOUT ---
+    
+    # 1. Capacity Controls
+    input_cap = InputBox(50, 90, 80, 40, text="15", numeric_only=True, max_chars=2)
+    btn_set = Button(140, 90, 100, 40, "Set Cap", "SET_CAP")
+    
+    # 2. Main Inputs
+    y_op = 160
+    input_val = InputBox(50, y_op, 200, 40, max_chars=10, numeric_only=True)
+    
+    # Buttons
+    buttons = [
+        btn_set,
+        Button(270, y_op, 100, 40, "Insert", "INS"),
+        Button(390, y_op, 120, 40, "Extract Min", "EXT"), 
+        Button(530, y_op, 100, 40, "Peek", "PEEK"),
+        Button(650, y_op, 100, 40, "Clear", "CLR"),
+        Button(900, 15, 80, 40, "← Back", "BACK", color=ORANGE)
+    ]
+    
+    input_boxes = [input_cap, input_val]
 
-    def generate_tree_layout(self):
+    def set_status(msg, color, logic=""):
+        state["status_msg"] = msg
+        state["msg_color"] = color
+        state["logic_msg"] = logic
+
+    def generate_tree_layout():
         """ Calculate node coordinates for a perfect binary tree """
         positions = {}
         start_y = 280
@@ -243,173 +245,161 @@ class Visualizer:
             y = start_y + (level * level_height)
             
             positions[i] = (x, y)
-            
         return positions
+    
+    node_positions = generate_tree_layout()
 
-    def handle_input(self):
-        mouse_pos = pygame.mouse.get_pos()
-        events = pygame.event.get()
+    # --- ACTION HANDLER ---
+    def execute_action(code):
+        state["peek_highlight"] = False 
         
-        for event in events:
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-                
-            self.input_val.handle_event(event)
-            self.input_cap.handle_event(event)
-            
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                for btn in self.buttons:
-                    if btn.is_clicked(mouse_pos):
-                        self.execute_action(btn.action_code)
+        if code == "BACK":
+            return "back"
 
-        for btn in self.buttons:
-            btn.check_hover(mouse_pos)
-
-    def set_status(self, msg, color, logic=""):
-        self.status_msg = msg
-        self.msg_color = color
-        self.logic_msg = logic
-
-    def execute_action(self, code):
-        self.peek_highlight = False 
-        
-        # --- SET CAP ---
         if code == "SET_CAP":
-            txt = self.input_cap.text
+            txt = input_cap.text
             if not txt: return
             try:
                 val = int(txt)
                 if val > MAX_CAPACITY:
-                    self.set_status(f"Error: Max Limit is {MAX_CAPACITY}", ERROR_COLOR)
-                    self.input_cap.text = str(MAX_CAPACITY)
+                    set_status(f"Error: Max Limit is {MAX_CAPACITY}", ERROR_COLOR)
+                    input_cap.text = str(MAX_CAPACITY)
                 elif val < 1:
-                    self.set_status("Error: Min Capacity 1", ERROR_COLOR)
+                    set_status("Error: Min Capacity 1", ERROR_COLOR)
                 else:
-                    truncated = self.pq.set_capacity(val)
+                    truncated = pq.set_capacity(val)
                     msg = f"Capacity set to {val}." + (" (Truncated)" if truncated else "")
-                    self.set_status(msg, SUCCESS_COLOR, "Heap Resized")
+                    set_status(msg, SUCCESS_COLOR, "Heap Resized")
             except ValueError:
-                self.set_status("Invalid Capacity", ERROR_COLOR)
+                set_status("Invalid Capacity", ERROR_COLOR)
 
-        # --- INSERT ---
         elif code == "INS":
-            val = self.input_val.text
+            val = input_val.text
             if val:
-                success, msg = self.pq.insert(val)
+                success, msg = pq.insert(val)
                 if success:
-                    # In Min Heap, smaller items bubble up
-                    self.set_status(msg, SUCCESS_COLOR, f"Insert {val} -> Bubble Up (if smaller)")
-                    self.input_val.text = ""
+                    set_status(msg, SUCCESS_COLOR, f"Insert {val} -> Bubble Up (if < Parent)")
+                    input_val.text = ""
                 else:
-                    self.set_status(msg, ERROR_COLOR, "Heap Full")
+                    set_status(msg, ERROR_COLOR)
             else:
-                self.set_status("Enter a Value!", ERROR_COLOR)
+                set_status("Enter a Value!", ERROR_COLOR)
 
-        # --- EXTRACT MIN ---
         elif code == "EXT":
-            item, msg = self.pq.extract_min()
+            item, msg = pq.extract_min()
             if item is not None:
-                self.set_status(msg, SUCCESS_COLOR, "Swap Root/Last -> Remove Last -> Heapify Down")
+                set_status(msg, SUCCESS_COLOR, "Swap Root/Last -> Remove -> Heapify Down")
             else:
-                self.set_status(msg, ERROR_COLOR)
+                set_status(msg, ERROR_COLOR)
 
-        # --- PEEK ---
         elif code == "PEEK":
-            item = self.pq.peek()
+            item = pq.peek()
             if item is not None:
-                self.set_status(f"Min Value: {item}", ORANGE, "Root Node (Smallest)")
-                self.peek_highlight = True
-                self.peek_timer = pygame.time.get_ticks()
+                set_status(f"Min Value: {item}", ORANGE, "Root Node (Index 0)")
+                state["peek_highlight"] = True
+                state["peek_timer"] = pygame.time.get_ticks()
             else:
-                self.set_status("Heap is Empty", ERROR_COLOR)
+                set_status("Heap is Empty", ERROR_COLOR)
 
-        # --- CLEAR ---
         elif code == "CLR":
-            self.pq.clear()
-            self.set_status("Heap Cleared", WHITE, "Reset")
+            pq.clear()
+            set_status("Heap Cleared", WHITE, "Reset")
+        
+        return None
 
-    def draw_tree_connection(self, i, parent_i):
-        if i >= len(self.pq.heap): return
-        start = self.node_positions[parent_i]
-        end = self.node_positions[i]
+    # --- DRAWING FUNCTIONS ---
+    def draw_tree_connection(i, parent_i):
+        if i >= len(pq.heap): return
+        start = node_positions[parent_i]
+        end = node_positions[i]
         pygame.draw.line(SCREEN, LIGHT_GREY, start, end, 2)
 
-    def draw_node(self, i, val):
-        pos = self.node_positions[i]
-        
+    def draw_node(i, val):
+        pos = node_positions[i]
         w, h = 45, 45
         rect = pygame.Rect(0, 0, w, h)
         rect.center = pos
         
         # Color Logic for Peek
         color = TEAL
-        if self.peek_highlight and i == 0:
-            if pygame.time.get_ticks() - self.peek_timer < 1000:
+        if state["peek_highlight"] and i == 0:
+            if pygame.time.get_ticks() - state["peek_timer"] < 1000:
                 color = ORANGE
             else:
-                self.peek_highlight = False
+                state["peek_highlight"] = False
 
         pygame.draw.rect(SCREEN, color, rect, border_radius=6)
         pygame.draw.rect(SCREEN, LIGHT_GREY, rect, 1, border_radius=6)
         
-        # Draw Value
         txt = str(val)
         txt_surf = font_node.render(txt, True, BLACK)
         txt_rect = txt_surf.get_rect(center=rect.center)
         SCREEN.blit(txt_surf, txt_rect)
 
-    def draw(self):
+    def draw():
         SCREEN.fill(GREY_BG)
         
-        # 1. Header
+        # Header
         title_surf = font_title.render("MIN HEAP", True, ORANGE)
         SCREEN.blit(title_surf, (50, 30))
         
-        # 2. Controls Area
-        # Row 1: Capacity
+        # Controls
         lbl_cap = font_ui.render(f"Capacity (Max {MAX_CAPACITY}):", True, LIGHT_GREY)
         SCREEN.blit(lbl_cap, (50, 65))
-        self.input_cap.draw(SCREEN)
+        input_cap.draw(SCREEN)
         
-        # Row 2: Value Input Only
-        lbl_val = font_ui.render("Value:", True, LIGHT_GREY)
+        lbl_val = font_ui.render("Value (Int):", True, LIGHT_GREY)
         SCREEN.blit(lbl_val, (50, 135))
-        self.input_val.draw(SCREEN)
+        input_val.draw(SCREEN)
         
-        # Buttons
-        for btn in self.buttons:
+        for btn in buttons:
             btn.draw(SCREEN)
             
-        # 3. Status Messages
-        s_surf = font_ui.render(self.status_msg, True, self.msg_color)
+        # Status Messages
+        s_surf = font_ui.render(state["status_msg"], True, state["msg_color"])
         SCREEN.blit(s_surf, (550, 40))
         
         l_lbl = font_ui.render("Logic Flow:", True, LIGHT_GREY)
         SCREEN.blit(l_lbl, (550, 70))
-        l_surf = font_msg.render(f"> {self.logic_msg}", True, TEAL_HOVER)
+        l_surf = font_msg.render(f"> {state['logic_msg']}", True, TEAL_HOVER)
         SCREEN.blit(l_surf, (550, 95))
 
-        # 4. Visualization Area Divider
+        # Divider
         pygame.draw.line(SCREEN, TEAL, (0, 240), (SCREEN_WIDTH, 240), 2)
         
         # Draw Connectors
-        for i in range(1, len(self.pq.heap)):
-            self.draw_tree_connection(i, self.pq.parent(i))
+        for i in range(1, len(pq.heap)):
+            draw_tree_connection(i, pq.parent(i))
             
         # Draw Nodes
-        for i in range(len(self.pq.heap)):
-            self.draw_node(i, self.pq.heap[i])
+        for i in range(len(pq.heap)):
+            draw_node(i, pq.heap[i])
 
         pygame.display.flip()
 
-    def run(self):
-        clock = pygame.time.Clock()
-        while True:
-            self.handle_input()
-            self.draw()
-            clock.tick(60)
+    # --- MAIN LOOP ---
+    running = True
+    while running:
+        mouse_pos = pygame.mouse.get_pos()
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return "quit"
+            
+            for box in input_boxes:
+                box.handle_event(event)
+            
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                for btn in buttons:
+                    if btn.is_clicked(mouse_pos):
+                        result = execute_action(btn.action_code)
+                        if result == "back":
+                            return "back"
 
-if __name__ == "__main__":
-    app = Visualizer()
-    app.run()
+        for btn in buttons:
+            btn.check_hover(mouse_pos)
+
+        draw()
+        clock.tick(60)
+
+    return "back"

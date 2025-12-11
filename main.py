@@ -69,13 +69,15 @@ QUEUES = [
 ]
 
 HEAPS = [
-    ("MinHeap", "min_heap.py"),
-    ("MaxHeap", "max_heap.py"),
+    ("Min Heap", "min_heap.py"),
+    ("Max Heap", "max_heap.py"),
 ]
 
+# Updated DATA_STRUCTURES list to include Heaps
 DATA_STRUCTURES = [
     ("Linked Lists", None),
     ("Queues", None),
+    ("Heaps", None),  # <-- Added Heaps here
     ("Stack", "stack_viz.py"),
     ("Binary Tree", "tree2.py"),
 ]
@@ -83,6 +85,7 @@ DATA_STRUCTURES = [
 ALGORITHMS = [
     ("Bubble Sort", "bubble_sort_viz.py", "BubbleSortVisualizer"),
     ("Selection Sort", "SelectionSort.py", "SelectionSortVisualizer"),
+    ("Insertion Sort", "insertion_sort.py", "InsertionSortVisualizer"),
     ("Merge Sort", "mergesort.py", "MergeSortTreeVisualizer"),
 ]
 
@@ -100,7 +103,7 @@ class MainApp:
         self.current_viz = None
         self.buttons = [
             Button(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 - 100, 300, 80, "Data Structures", self.show_data_structures, Colors.TEAL),
-            Button(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 + 50, 300, 80, "Algorithms", self.show_algorithms, Colors.ORANGE),
+            Button(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 + 50, 300, 80, "Algorithms", self.show_algorithms, Colors.TEAL),
         ]
 
     def show_data_structures(self):
@@ -111,13 +114,19 @@ class MainApp:
         
         for name, filepath in DATA_STRUCTURES:
             if filepath is None:
+                # Handle sub-menus
                 if name == "Linked Lists":
                     btn = Button(50, y_pos, SCREEN_WIDTH - 100, 60, name, self.show_linked_lists, Colors.TEAL)
                 elif name == "Queues":
                     btn = Button(50, y_pos, SCREEN_WIDTH - 100, 60, name, self.show_queues, Colors.TEAL)
+                elif name == "Heaps":
+                    # Link the Heaps button to the show_heaps function
+                    btn = Button(50, y_pos, SCREEN_WIDTH - 100, 60, name, self.show_heaps, Colors.TEAL)
             else:
+                # Handle direct file loads
                 btn = Button(50, y_pos, SCREEN_WIDTH - 100, 60, name, 
                             lambda f=filepath, n=name: self.load_visualization(f, n), Colors.TEAL)
+            
             self.buttons.append(btn)
             y_pos += 90
         
@@ -186,6 +195,7 @@ class MainApp:
             import traceback
             traceback.print_exc()
 
+    # ... (Rest of the code remains the same as provided previously) ...
     def setup_viz_buttons(self):
         self.buttons = [
             Button(20, 240, 80, 40, "Prev", self.viz_prev, Colors.TEAL),

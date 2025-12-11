@@ -1,11 +1,11 @@
 import pygame
 import sys
 import random
-import Colors  # Your custom colors file
+import Colors
 
 # --- Configuration ---
 SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 600
+SCREEN_HEIGHT = 700  # Standardized height
 SIDEBAR_WIDTH = 300
 
 # Colors
@@ -29,13 +29,7 @@ ERROR_COLOR = (255, 87, 87)
 NODE_W = 60
 NODE_H = 50
 GAP = 15
-START_Y = 300  # Vertically centered
-
-pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Insertion Sort Visualization")
-clock = pygame.time.Clock()
-
+START_Y = 350  # Vertically centered
 
 # --- Fonts ---
 def get_font(size, bold=False):
@@ -44,7 +38,6 @@ def get_font(size, bold=False):
     except FileNotFoundError:
         return pygame.font.SysFont('Arial', size, bold=bold)
 
-
 font_header = get_font(28, bold=True)
 font_ui = get_font(16)
 font_val = get_font(20, bold=True)
@@ -52,7 +45,7 @@ font_small = get_font(14)
 font_logic = get_font(18)
 
 
-# --- UI Components (Identical to Merge Sort) ---
+# --- UI Components ---
 class Button:
     def __init__(self, x, y, w, h, text, func, color=BUTTON_COLOR):
         self.rect = pygame.Rect(x, y, w, h)
@@ -73,7 +66,8 @@ class Button:
             self.is_hovered = self.rect.collidepoint(event.pos)
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.is_hovered and self.func:
-                self.func()
+                return self.func() # Return result
+        return None
 
 
 class InputBox:
@@ -117,9 +111,10 @@ class Slider:
         self.val = initial
         self.dragging = False
         self.handle_rect = pygame.Rect(x, y - 5, 10, 30)
-        self.update_handle()
+        self.update_handle(initial)
 
-    def update_handle(self):
+    def update_handle(self, val=None):
+        if val is not None: self.val = val
         ratio = (self.val - self.min_val) / (self.max_val - self.min_val)
         self.handle_rect.centerx = self.rect.x + (self.rect.width * ratio)
 
@@ -158,15 +153,16 @@ class InsertionSortVisualizer:
         self.status_msg = "Welcome"
         self.status_color = TEXT_COLOR
         self.comps_count = 0
-        self.swaps_count = 0 # Shifts in insertion sort
+        self.swaps_count = 0 
+        self.sort_mode = "asc"  # "asc" or "desc"
 
     def set_msg(self, msg, color=TEXT_COLOR):
         self.status_msg = msg
         self.status_color = color
 
     def generate_random(self, size):
-        if not (2 <= size <= 12): # Allowed slightly larger size for Insertion
-            self.set_msg("Size must be 2-12!", ERROR_COLOR)
+        if not (2 <= size <= 8):
+            self.set_msg("Size must be 2-8!", ERROR_COLOR)
             return
         self.initial_array = [random.randint(10, 99) for _ in range(size)]
         self.set_msg(f"Generated {size} items", Colors.TEAL)
@@ -189,15 +185,19 @@ class InsertionSortVisualizer:
         except ValueError:
             self.set_msg("Error: Numbers only", ERROR_COLOR)
 
+    def toggle_sort_mode(self):
+        self.sort_mode = "desc" if self.sort_mode == "asc" else "asc"
+        if self.initial_array:
+            self.precompute_history()
+
     def save_state(self, current_arr, colors, desc, active_key_idx=None, compare_idx=None):
-        # We save who is the "Key" (being moved) to draw it lifted up
         self.history.append({
             'values': current_arr[:],
             'colors': colors[:],
             'stats': (self.comps_count, self.swaps_count),
             'desc': desc,
-            'key_idx': active_key_idx,    # Index of the floating key
-            'compare_idx': compare_idx    # Index being compared against
+            'key_idx': active_key_idx,    
+            'compare_idx': compare_idx    
         })
 
     def precompute_history(self):
@@ -206,11 +206,14 @@ class InsertionSortVisualizer:
         self.swaps_count = 0
         arr = self.initial_array[:]
         n = len(arr)
+        
+        is_desc = self.sort_mode == "desc"
+        mode_label = "Descending" if is_desc else "Ascending"
 
         # Initial State
         colors = [NODE_DEFAULT] * n
-        colors[0] = NODE_SORTED # First element is trivially sorted
-        self.save_state(arr, colors, "Start: First element is sorted")
+        colors[0] = NODE_SORTED 
+        self.save_state(arr, colors, f"Start ({mode_label}): First element sorted")
 
         for i in range(1, n):
             key = arr[i]
@@ -228,14 +231,20 @@ class InsertionSortVisualizer:
                 colors[j] = NODE_COMPARE
                 self.save_state(arr, colors, f"Compare Key ({key}) vs {arr[j]}", active_key_idx=j+1, compare_idx=j)
 
-                if key < arr[j]:
+                # Determine condition based on mode
+                # Ascending: Shift if key < arr[j]
+                # Descending: Shift if key > arr[j]
+                condition = key > arr[j] if is_desc else key < arr[j]
+                op_symbol = ">" if is_desc else "<"
+
+                if condition:
                     # Shift
                     self.swaps_count += 1
                     arr[j + 1] = arr[j]
-                    colors[j] = NODE_SHIFT # Briefly show shift color
-                    colors[j+1] = NODE_KEY # The hole moves
+                    colors[j] = NODE_SHIFT 
+                    colors[j+1] = NODE_KEY 
                     
-                    self.save_state(arr, colors, f"{key} < {arr[j]}. Shift {arr[j]} right.", active_key_idx=j, compare_idx=j+1)
+                    self.save_state(arr, colors, f"{key} {op_symbol} {arr[j]}. Shift {arr[j]} right.", active_key_idx=j, compare_idx=j+1)
                     
                     # Reset color after shift
                     colors[j+1] = NODE_SORTED
@@ -243,7 +252,8 @@ class InsertionSortVisualizer:
                 else:
                     # Found position
                     colors[j] = NODE_SORTED
-                    self.save_state(arr, colors, f"{key} >= {arr[j]}. Position found.", active_key_idx=j+1)
+                    op_symbol = "<=" if is_desc else ">="
+                    self.save_state(arr, colors, f"{key} {op_symbol} {arr[j]}. Position found.", active_key_idx=j+1)
                     break
             
             arr[j + 1] = key
@@ -310,7 +320,6 @@ class InsertionSortVisualizer:
 
         # --- Draw Nodes ---
         for i, val in enumerate(vals):
-            # Calculate positions
             x = start_x + i * (NODE_W + GAP)
             y = START_Y
             
@@ -336,113 +345,134 @@ class InsertionSortVisualizer:
             surface.blit(idx_txt, idx_txt.get_rect(center=(rect.centerx, START_Y + NODE_H + 15)))
 
 
-# --- App Instance ---
-viz = InsertionSortVisualizer()
+# --- Main Run Function ---
+def run(screen):
+    clock = pygame.time.Clock()
+    viz = InsertionSortVisualizer()
 
+    # --- Actions ---
+    def btn_rand_action():
+        try:
+            s = int(size_input.text)
+            viz.generate_random(s)
+        except ValueError:
+            viz.set_msg("Size must be number", ERROR_COLOR)
 
-# --- Controls Actions ---
-def btn_rand_action():
-    try:
-        s = int(size_input.text)
-        viz.generate_random(s)
-    except ValueError:
-        viz.set_msg("Size must be number", ERROR_COLOR)
+    def btn_load_action(): viz.load_manual(input_box.text)
+    def btn_mode_action(): viz.toggle_sort_mode()
+    def btn_prev_action(): viz.prev_step(); viz.playing = False
+    def btn_play_action(): viz.toggle_play()
+    def btn_next_action(): viz.next_step(); viz.playing = False
+    def btn_reset_action(): viz.reset()
+    def go_back(): return "back"
 
+    # Layout
+    size_input = InputBox(20, 75, 50, 35, text="8", numeric_only=True, max_chars=2)
+    btn_rand = Button(80, 75, 200, 35, "Randomize (Size 2-12)", btn_rand_action)
+    input_box = InputBox(20, 145, 190, 35, text="")
+    btn_load = Button(220, 145, 60, 35, "Load", btn_load_action)
 
-def btn_load_action(): viz.load_manual(input_box.text)
-def btn_prev_action(): viz.prev_step(); viz.playing = False
-def btn_play_action(): viz.toggle_play()
-def btn_next_action(): viz.next_step(); viz.playing = False
-def btn_reset_action(): viz.reset()
+    # Sort Mode Button
+    btn_mode = Button(20, 185, 260, 35, "Sort: Ascending ↑", btn_mode_action, color=Colors.ORANGE)
 
+    btn_prev = Button(20, 240, 80, 40, "Prev", btn_prev_action)
+    btn_play = Button(110, 240, 80, 40, "Play/||", btn_play_action)
+    btn_next = Button(200, 240, 80, 40, "Next", btn_next_action)
+    btn_reset = Button(20, 290, 260, 35, "Reset", btn_reset_action, color=Colors.ORANGE)
+    
+    btn_back = Button(900, 15, 80, 40, "← Back", go_back, color=Colors.ORANGE)
+    
+    speed_slider = Slider(20, 360, 260, 50, 1000, 300)
 
-# Layout (Identical Positions to Merge Sort)
-size_input = InputBox(20, 75, 50, 35, text="8", numeric_only=True, max_chars=2)
-btn_rand = Button(80, 75, 200, 35, "Randomize (Size 2-12)", btn_rand_action)
-input_box = InputBox(20, 145, 190, 35, text="")
-btn_load = Button(220, 145, 60, 35, "Load", btn_load_action)
-btn_prev = Button(20, 240, 80, 40, "Prev", btn_prev_action)
-btn_play = Button(110, 240, 80, 40, "Play/||", btn_play_action)
-btn_next = Button(200, 240, 80, 40, "Next", btn_next_action)
-btn_reset = Button(20, 290, 260, 35, "Reset", btn_reset_action, color=Colors.ORANGE)
-speed_slider = Slider(20, 360, 260, 50, 1000, 300)
+    ui_elements = [size_input, btn_rand, input_box, btn_load, btn_mode, 
+                   btn_prev, btn_play, btn_next, btn_reset, btn_back, speed_slider]
 
-ui_elements = [size_input, btn_rand, input_box, btn_load, btn_prev, btn_play, btn_next, btn_reset, speed_slider]
+    viz.generate_random(8)
 
-viz.generate_random(8)
+    # --- Main Loop ---
+    running = True
+    while running:
+        viz.update(speed_slider.val)
 
-# --- Main Loop ---
-running = True
-while running:
-    viz.update(speed_slider.val)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return "quit"
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT: running = False
-        size_input.handle_event(event)
-        input_box.handle_event(event)
-        speed_slider.handle_event(event)
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            for btn in [btn_rand, btn_load, btn_prev, btn_play, btn_next, btn_reset]:
-                btn.handle_event(event)
-        if event.type == pygame.MOUSEMOTION:
-            for btn in [btn_rand, btn_load, btn_prev, btn_play, btn_next, btn_reset]:
-                btn.handle_event(event)
+            size_input.handle_event(event)
+            input_box.handle_event(event)
+            speed_slider.handle_event(event)
 
-    screen.fill(BG_COLOR)
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                for btn in ui_elements:
+                    if isinstance(btn, Button):
+                        result = btn.handle_event(event)
+                        if result == "back":
+                            return "back"
+            
+            if event.type == pygame.MOUSEMOTION:
+                for btn in ui_elements:
+                    if isinstance(btn, Button):
+                        btn.handle_event(event)
+                    elif isinstance(btn, Slider):
+                        btn.handle_event(event)
 
-    # Sidebar
-    sidebar_rect = pygame.Rect(0, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
-    pygame.draw.rect(screen, SIDEBAR_COLOR, sidebar_rect)
-    pygame.draw.line(screen, Colors.TEAL, (SIDEBAR_WIDTH, 0), (SIDEBAR_WIDTH, SCREEN_HEIGHT), 2)
+        screen.fill(BG_COLOR)
 
-    screen.blit(font_header.render("Insertion Sort", True, Colors.TEAL), (20, 20))
-    screen.blit(font_small.render("1. Array Size (2-12):", True, TEXT_COLOR), (20, 55))
-    screen.blit(font_small.render("2. Manual Input :", True, TEXT_COLOR), (20, 125))
-    screen.blit(font_small.render("3. Controls:", True, TEXT_COLOR), (20, 220))
+        # Sidebar
+        sidebar_rect = pygame.Rect(0, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
+        pygame.draw.rect(screen, SIDEBAR_COLOR, sidebar_rect)
+        pygame.draw.line(screen, Colors.TEAL, (SIDEBAR_WIDTH, 0), (SIDEBAR_WIDTH, SCREEN_HEIGHT), 2)
 
-    for el in ui_elements: el.draw(screen)
+        screen.blit(font_header.render("Insertion Sort", True, Colors.TEAL), (20, 20))
+        screen.blit(font_small.render("1. Array Size (2-12):", True, TEXT_COLOR), (20, 55))
+        screen.blit(font_small.render("2. Manual Input :", True, TEXT_COLOR), (20, 125))
+        screen.blit(font_small.render("3. Controls:", True, TEXT_COLOR), (20, 220))
 
-    status_surf = font_ui.render(viz.status_msg, True, viz.status_color)
-    screen.blit(status_surf, (20, 400))
+        # Dynamic Button Text
+        btn_mode.text = "Mode: Desc" if viz.sort_mode == "desc" else "Mode: Asc"
 
-    pygame.draw.line(screen, (50, 50, 50), (20, 430), (280, 430), 1)
-    screen.blit(font_val.render("Statistics", True, TEXT_COLOR), (20, 440))
+        for el in ui_elements: el.draw(screen)
 
-    c_comps, c_swaps = 0, 0
-    if viz.history:
-        c_comps, c_swaps = viz.history[viz.step_index]['stats']
+        status_surf = font_ui.render(viz.status_msg, True, viz.status_color)
+        screen.blit(status_surf, (20, 400))
 
-    stats_info = [
-        f"Comparisons: {c_comps}",
-        f"Shifts/Swaps: {c_swaps}",
-        f"Step: {viz.step_index + 1} / {len(viz.history)}",
-        "Complexity: O(n^2)",
-        "Type: In-Place Stable"
-    ]
-    for i, txt in enumerate(stats_info):
-        col = Colors.ORANGE if i < 3 else TEXT_COLOR
-        screen.blit(font_ui.render(txt, True, col), (20, 470 + i * 25))
+        pygame.draw.line(screen, (50, 50, 50), (20, 430), (280, 430), 1)
+        screen.blit(font_val.render("Statistics", True, TEXT_COLOR), (20, 440))
 
-    viz.draw_viz(screen)
+        c_comps, c_swaps = 0, 0
+        if viz.history:
+            c_comps, c_swaps = viz.history[viz.step_index]['stats']
 
-    # Legend
-    leg_y = 600 - 40 # Bottom right
-    leg_x = SIDEBAR_WIDTH + 50
+        stats_info = [
+            f"Comparisons: {c_comps}",
+            f"Shifts: {c_swaps}",
+            f"Step: {viz.step_index + 1} / {len(viz.history)}",
+            "Complexity: O(n^2)",
+            "Type: In-Place Stable"
+        ]
+        for i, txt in enumerate(stats_info):
+            col = Colors.ORANGE if i < 3 else TEXT_COLOR
+            screen.blit(font_ui.render(txt, True, col), (20, 470 + i * 25))
 
-    def draw_legend(x, color, text):
-        r = pygame.Rect(x, leg_y, 20, 20)
-        pygame.draw.rect(screen, color, r, border_radius=4)
-        t = font_small.render(text, True, TEXT_COLOR)
-        screen.blit(t, (x + 30, leg_y + 2))
-        return x + 120
+        viz.draw_viz(screen)
 
-    lx = draw_legend(leg_x, NODE_SORTED, "Sorted")
-    lx = draw_legend(lx, NODE_KEY, "Key (Insert)")
-    lx = draw_legend(lx, NODE_COMPARE, "Compare")
-    lx = draw_legend(lx, NODE_SHIFT, "Shift")
+        # Legend
+        leg_y = SCREEN_HEIGHT - 60 
+        leg_x = SIDEBAR_WIDTH + 50
 
-    pygame.display.flip()
-    clock.tick(60)
+        def draw_legend(x, color, text):
+            r = pygame.Rect(x, leg_y, 20, 20)
+            pygame.draw.rect(screen, color, r, border_radius=4)
+            t = font_small.render(text, True, TEXT_COLOR)
+            screen.blit(t, (x + 30, leg_y + 2))
+            return x + 120
 
-pygame.quit()
-sys.exit()
+        lx = draw_legend(leg_x, NODE_SORTED, "Sorted")
+        lx = draw_legend(lx, NODE_KEY, "Key (Insert)")
+        lx = draw_legend(lx, NODE_COMPARE, "Compare")
+        lx = draw_legend(lx, NODE_SHIFT, "Shift")
+
+        pygame.display.flip()
+        clock.tick(60)
+
+    return "back"

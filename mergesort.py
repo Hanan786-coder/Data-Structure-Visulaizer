@@ -5,7 +5,7 @@ import Colors  # Your custom colors file
 
 # --- Configuration ---
 SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 700 # Increased slightly for depth
+SCREEN_HEIGHT = 700 
 SIDEBAR_WIDTH = 300
 
 # Colors
@@ -14,11 +14,10 @@ SIDEBAR_COLOR = (30, 30, 35)
 
 # Node Colors
 NODE_DEFAULT = Colors.TEAL
-NODE_SPLIT = (70, 130, 180)  # Steel Blue (Just split)
-NODE_COMPARE = (255, 215, 0)  # Gold
+NODE_SPLIT = (70, 130, 180)    # Steel Blue (Just split)
+NODE_COMPARE = (255, 215, 0)   # Gold
 NODE_MERGING = (155, 89, 182)  # Purple (Moving up)
-
-NODE_SORTED = (46, 204, 113)  # Green
+NODE_SORTED = (46, 204, 113)   # Green
 
 TEXT_COLOR = Colors.LIGHT_GREY
 BUTTON_COLOR = Colors.TEAL
@@ -30,14 +29,8 @@ ERROR_COLOR = (255, 87, 87)
 NODE_W = 50
 NODE_H = 40
 GAP = 20
-START_Y = 100  # Starting higher to allow drop-down
+START_Y = 100  
 LEVEL_HEIGHT = 100  # Vertical distance between recursion levels
-
-pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Merge Sort (Tree Division Visualization)")
-clock = pygame.time.Clock()
-
 
 # --- Fonts ---
 def get_font(size, bold=False):
@@ -75,7 +68,8 @@ class Button:
             self.is_hovered = self.rect.collidepoint(event.pos)
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.is_hovered and self.func:
-                self.func()
+                return self.func() # Return result
+        return None
 
 
 class InputBox:
@@ -162,8 +156,6 @@ class MergeSortTreeVisualizer:
         self.sort_mode = "asc"
 
         # State tracking for generation
-        # "active_chunks" is a list of dictionaries:
-        # { 'values': [...], 'colors': [...], 'depth': int, 'abs_index': int }
         self.active_chunks = []
         self.comps_count = 0
         self.merges_count = 0
@@ -229,7 +221,7 @@ class MergeSortTreeVisualizer:
             'values': self.initial_array[:],
             'colors': [NODE_DEFAULT] * len(self.initial_array),
             'depth': 0,
-            'abs_index': 0  # Starting absolute index on the x-axis grid
+            'abs_index': 0 
         }]
 
         mode_label = "Descending" if self.sort_mode == "desc" else "Ascending"
@@ -296,13 +288,10 @@ class MergeSortTreeVisualizer:
         merged = []
         i = j = 0
 
-        desc_range = f"Merging L:[{sorted_left[0]}..] R:[{sorted_right[0]}..]"
-
         while i < len(sorted_left) and j < len(sorted_right):
             self.comps_count += 1
 
             # Highlight Comparison in the children chunks
-            # Find chunks active in active_chunks list
             left_chunk = next(c for c in self.active_chunks if c['depth'] == depth + 1 and c['abs_index'] == abs_idx)
             right_chunk = next(
                 c for c in self.active_chunks if c['depth'] == depth + 1 and c['abs_index'] == abs_idx + mid)
@@ -419,13 +408,8 @@ class MergeSortTreeVisualizer:
             # Calculate Y based on Depth
             y_pos = START_Y + (depth * LEVEL_HEIGHT)
 
-            # Calculate X based on Absolute Index (keeps vertical alignment)
-            # abs_idx 0 is the far left column, abs_idx 1 is next, etc.
+            # Calculate X based on Absolute Index
             x_start = viz_start_x + abs_idx * (NODE_W + GAP)
-
-            # Draw Container/Group Indicator (Optional faint box)
-            group_w = len(vals) * (NODE_W + GAP) - GAP
-            # pygame.draw.rect(surface, (40,40,45), (x_start - 5, y_pos - 5, group_w + 10, NODE_H + 10), 1)
 
             for i, val in enumerate(vals):
                 cx = x_start + i * (NODE_W + GAP)
@@ -444,130 +428,133 @@ class MergeSortTreeVisualizer:
                     pygame.draw.line(surface, (60, 60, 60), (rect.centerx, y_pos), (rect.centerx, parent_y), 1)
 
 
-# --- App Instance ---
-viz = MergeSortTreeVisualizer()
+# --- Main Run Function ---
+def run(screen):
+    clock = pygame.time.Clock()
+    viz = MergeSortTreeVisualizer()
 
+    # --- Actions ---
+    def btn_rand_action():
+        try:
+            s = int(size_input.text)
+            viz.generate_random(s)
+        except ValueError:
+            viz.set_msg("Size must be number", ERROR_COLOR)
 
-# --- Controls Actions ---
-def btn_rand_action():
-    try:
-        s = int(size_input.text)
-        viz.generate_random(s)
-    except ValueError:
-        viz.set_msg("Size must be number", ERROR_COLOR)
+    def btn_load_action(): viz.load_manual(input_box.text)
+    def btn_sort_mode_action(): viz.toggle_sort_mode()
+    def btn_prev_action(): viz.prev_step(); viz.playing = False
+    def btn_play_action(): viz.toggle_play()
+    def btn_next_action(): viz.next_step(); viz.playing = False
+    def btn_reset_action(): viz.reset()
+    def go_back(): return "back"
 
+    # Layout
+    size_input = InputBox(20, 75, 50, 35, text="6", numeric_only=True, max_chars=1)
+    btn_rand = Button(80, 75, 200, 35, "Randomize (Size 2-8)", btn_rand_action)
+    input_box = InputBox(20, 128, 190, 35, text="")
+    btn_load = Button(220, 128, 60, 35, "Load", btn_load_action)
+    btn_sort_mode = Button(20, 185, 260, 35, "Sort: Ascending ↑", btn_sort_mode_action)
+    
+    btn_prev = Button(20, 240, 80, 40, "Prev", btn_prev_action)
+    btn_play = Button(110, 240, 80, 40, "Play/||", btn_play_action)
+    btn_next = Button(200, 240, 80, 40, "Next", btn_next_action)
+    btn_reset = Button(20, 290, 260, 35, "Reset", btn_reset_action, color=Colors.ORANGE)
+    
+    btn_back = Button(900, 15, 80, 40, "← Back", go_back, color=Colors.ORANGE)
+    
+    speed_slider = Slider(20, 360, 260, 50, 1000, 500)
 
-def btn_load_action(): viz.load_manual(input_box.text)
+    # Group UI Elements for Loop
+    ui_elements = [size_input, btn_rand, input_box, btn_load, btn_sort_mode, 
+                   btn_prev, btn_play, btn_next, btn_reset, btn_back, speed_slider]
 
+    viz.generate_random(6)
 
-def btn_sort_mode_action(): viz.toggle_sort_mode()
+    # --- Main Loop ---
+    running = True
+    while running:
+        viz.update(speed_slider.val)
 
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return "quit"
 
-def btn_prev_action(): viz.prev_step(); viz.playing = False
+            size_input.handle_event(event)
+            input_box.handle_event(event)
+            speed_slider.handle_event(event)
 
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                for btn in ui_elements:
+                    if isinstance(btn, Button):
+                        result = btn.handle_event(event)
+                        if result == "back":
+                            return "back"
+            
+            if event.type == pygame.MOUSEMOTION:
+                for btn in ui_elements:
+                    if isinstance(btn, Button):
+                        btn.handle_event(event)
+                    elif isinstance(btn, Slider):
+                        btn.handle_event(event)
 
-def btn_play_action(): viz.toggle_play()
+        screen.fill(BG_COLOR)
 
+        # Sidebar
+        sidebar_rect = pygame.Rect(0, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
+        pygame.draw.rect(screen, SIDEBAR_COLOR, sidebar_rect)
+        pygame.draw.line(screen, Colors.TEAL, (SIDEBAR_WIDTH, 0), (SIDEBAR_WIDTH, SCREEN_HEIGHT), 2)
 
-def btn_next_action(): viz.next_step(); viz.playing = False
+        screen.blit(font_header.render("Merge Sort", True, Colors.TEAL), (20, 20))
+        screen.blit(font_small.render("1. Array Size (2-8):", True, TEXT_COLOR), (20, 55))
+        screen.blit(font_small.render("2. Manual Input :", True, TEXT_COLOR), (20, 108))
+        screen.blit(font_small.render("3. Sort Order:", True, TEXT_COLOR), (20, 165))
+        screen.blit(font_small.render("4. Controls:", True, TEXT_COLOR), (20, 220))
 
+        btn_sort_mode.text = "Mode: Desc" if viz.sort_mode == "desc" else "Mode: Asc"
 
-def btn_reset_action(): viz.reset()
+        for el in ui_elements: el.draw(screen)
 
+        status_surf = font_ui.render(viz.status_msg, True, viz.status_color)
+        screen.blit(status_surf, (20, 400))
 
-# Layout
-size_input = InputBox(20, 75, 50, 35, text="6", numeric_only=True, max_chars=1)
-btn_rand = Button(80, 75, 200, 35, "Randomize (Size 2-8)", btn_rand_action)
-input_box = InputBox(20, 128, 190, 35, text="")
-btn_load = Button(220, 128, 60, 35, "Load", btn_load_action)
-btn_sort_mode = Button(20, 185, 260, 35, "Sort: Ascending ↑", btn_sort_mode_action)
-btn_prev = Button(20, 240, 80, 40, "Prev", btn_prev_action)
-btn_play = Button(110, 240, 80, 40, "Play/||", btn_play_action)
-btn_next = Button(200, 240, 80, 40, "Next", btn_next_action)
-btn_reset = Button(20, 290, 260, 35, "Reset", btn_reset_action, color=Colors.ORANGE)
-speed_slider = Slider(20, 360, 260, 50, 1000, 500)
+        pygame.draw.line(screen, (50, 50, 50), (20, 430), (280, 430), 1)
+        screen.blit(font_val.render("Statistics", True, TEXT_COLOR), (20, 440))
 
-ui_elements = [size_input, btn_rand, input_box, btn_load, btn_sort_mode, btn_prev, btn_play, btn_next, btn_reset, speed_slider]
+        c_comps, c_merges = 0, 0
+        if viz.history:
+            c_comps, c_merges = viz.history[viz.step_index]['stats']
 
-viz.generate_random(6)
+        stats_info = [
+            f"Comparisons: {c_comps}",
+            f"Merges: {c_merges}",
+            f"Step: {viz.step_index + 1} / {len(viz.history)}",
+            "Complexity: O(n log n)",
+            "Structure: Recursive Tree"
+        ]
+        for i, txt in enumerate(stats_info):
+            col = Colors.ORANGE if i < 3 else TEXT_COLOR
+            screen.blit(font_ui.render(txt, True, col), (20, 470 + i * 25))
 
-# --- Main Loop ---
-running = True
-while running:
-    viz.update(speed_slider.val)
+        viz.draw_viz(screen)
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT: running = False
-        size_input.handle_event(event)
-        input_box.handle_event(event)
-        speed_slider.handle_event(event)
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            for btn in [btn_rand, btn_load, btn_sort_mode, btn_prev, btn_play, btn_next, btn_reset]:
-                btn.handle_event(event)
-        if event.type == pygame.MOUSEMOTION:
-            for btn in [btn_rand, btn_load, btn_sort_mode, btn_prev, btn_play, btn_next, btn_reset]:
-                btn.handle_event(event)
+        # Legend
+        leg_y = SCREEN_HEIGHT - 40
+        leg_x = SIDEBAR_WIDTH + 50
 
-    screen.fill(BG_COLOR)
+        def draw_legend(x, color, text):
+            r = pygame.Rect(x, leg_y, 20, 20)
+            pygame.draw.rect(screen, color, r, border_radius=4)
+            t = font_small.render(text, True, TEXT_COLOR)
+            screen.blit(t, (x + 30, leg_y + 2))
+            return x + 110
 
-    # Sidebar
-    sidebar_rect = pygame.Rect(0, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
-    pygame.draw.rect(screen, SIDEBAR_COLOR, sidebar_rect)
-    pygame.draw.line(screen, Colors.TEAL, (SIDEBAR_WIDTH, 0), (SIDEBAR_WIDTH, SCREEN_HEIGHT), 2)
+        lx = draw_legend(leg_x, NODE_SPLIT, "Split")
+        lx = draw_legend(lx, NODE_COMPARE, "Compare")
+        lx = draw_legend(lx, NODE_SORTED, "Sorted")
+        lx = draw_legend(lx, NODE_MERGING, "Merging")
 
-    screen.blit(font_header.render("Merge Sort", True, Colors.TEAL), (20, 20))
-    screen.blit(font_small.render("1. Array Size (2-8):", True, TEXT_COLOR), (20, 55))
-    screen.blit(font_small.render("2. Manual Input :", True, TEXT_COLOR), (20, 108))
-    screen.blit(font_small.render("3. Sort Order:", True, TEXT_COLOR), (20, 165))
-    screen.blit(font_small.render("4. Controls:", True, TEXT_COLOR), (20, 220))
+        pygame.display.flip()
+        clock.tick(60)
 
-    btn_sort_mode.text = "Sort: Descending ↓" if viz.sort_mode == "desc" else "Sort: Ascending ↑"
-
-    for el in ui_elements: el.draw(screen)
-
-    status_surf = font_ui.render(viz.status_msg, True, viz.status_color)
-    screen.blit(status_surf, (20, 400))
-
-    pygame.draw.line(screen, (50, 50, 50), (20, 430), (280, 430), 1)
-    screen.blit(font_val.render("Statistics", True, TEXT_COLOR), (20, 440))
-
-    c_comps, c_merges = 0, 0
-    if viz.history:
-        c_comps, c_merges = viz.history[viz.step_index]['stats']
-
-    stats_info = [
-        f"Comparisons: {c_comps}",
-        f"Merges: {c_merges}",
-        f"Step: {viz.step_index + 1} / {len(viz.history)}",
-        "Complexity: O(n log n)",
-        "Structure: Recursive Tree"
-    ]
-    for i, txt in enumerate(stats_info):
-        col = Colors.ORANGE if i < 3 else TEXT_COLOR
-        screen.blit(font_ui.render(txt, True, col), (20, 470 + i * 25))
-
-    viz.draw_viz(screen)
-
-    # Legend
-    leg_y = 660
-    leg_x = SIDEBAR_WIDTH + 50
-
-
-    def draw_legend(x, color, text):
-        r = pygame.Rect(x, leg_y, 20, 20)
-        pygame.draw.rect(screen, color, r, border_radius=4)
-        t = font_small.render(text, True, TEXT_COLOR)
-        screen.blit(t, (x + 30, leg_y + 2))
-        return x + 110
-
-
-    lx = draw_legend(leg_x, NODE_SPLIT, "Split")
-    lx = draw_legend(lx, NODE_COMPARE, "Compare")
-    lx = draw_legend(lx, NODE_SORTED, "Sorted")
-    lx = draw_legend(lx, NODE_MERGING, "Merging")
-
-    pygame.display.flip()
-    clock.tick(60)
-
-pygame.quit()
-sys.exit()
+    return "back"

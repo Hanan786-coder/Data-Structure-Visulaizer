@@ -27,11 +27,6 @@ NODE_H = 45
 GAP = 30
 START_Y = 300
 
-pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Bubble Sort Visualization (Linked List)")
-clock = pygame.time.Clock()
-
 
 # --- Fonts ---
 def get_font(size, bold=False):
@@ -70,7 +65,8 @@ class Button:
             self.is_hovered = self.rect.collidepoint(event.pos)
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.is_hovered and self.func:
-                self.func()
+                return self.func() # Return the result of the function
+        return None
 
 
 class InputBox:
@@ -360,43 +356,34 @@ class BubbleSortVisualizer:
                 ])
 
 
-# --- App Instance ---
-viz = BubbleSortVisualizer()
+# --- Main Run Function ---
+def run(screen):
+    clock = pygame.time.Clock()
+    
+    # Initialize Visualizer Logic
+    viz = BubbleSortVisualizer()
 
+    # --- UI Callbacks (Defined inside run to capture `viz` and inputs) ---
+    def btn_rand_action():
+        try:
+            s = int(size_input.text)
+            viz.generate_random(s)
+        except ValueError:
+            viz.set_msg("Size must be a number", ERROR_COLOR)
 
-# --- Controls setup ---
-def btn_rand_action():
-    try:
-        s = int(size_input.text)
-        viz.generate_random(s)
-    except ValueError:
-        viz.set_msg("Size must be a number", ERROR_COLOR)
+    def btn_load_action():
+        if viz.load_manual(input_box.text):
+            input_box.text = ""
 
+    def btn_prev_action(): viz.prev_step(); viz.playing = False
+    def btn_play_action(): viz.toggle_play()
+    def btn_next_action(): viz.next_step(); viz.playing = False
+    def btn_reset_action(): viz.reset()
+    def btn_mode_action(): viz.toggle_sort_mode()
+    def go_back(): return "back"
 
-def btn_load_action():
-    if viz.load_manual(input_box.text):
-        input_box.text = ""
-
-
-def btn_prev_action(): viz.prev_step(); viz.playing = False
-
-
-def btn_play_action(): viz.toggle_play()
-
-
-def btn_next_action(): viz.next_step(); viz.playing = False
-
-
-def btn_reset_action(): viz.reset()
-
-
-def btn_mode_action(): viz.toggle_sort_mode()
-
-
-def main():
-    global viz, size_input, input_box, btn_load, btn_mode, btn_rand, btn_prev, btn_play, btn_next, btn_reset, speed_slider, ui_elements
-
-    # UI Layout
+    # --- UI Layout Initialization ---
+    
     # 1. Size
     size_input = InputBox(20, 75, 50, 35, text="5", numeric_only=True, max_chars=1)
     btn_rand = Button(80, 75, 200, 35, "Randomize (Size 2-8)", btn_rand_action)
@@ -413,12 +400,17 @@ def main():
     btn_play = Button(110, 240, 80, 40, "Play/||", btn_play_action)
     btn_next = Button(200, 240, 80, 40, "Next", btn_next_action)
     btn_reset = Button(20, 290, 260, 35, "Reset", btn_reset_action, color=Colors.ORANGE)
+    
+    # 5. Back Button
+    btn_back = Button(900, 15, 80, 40, "← Back", go_back, color=Colors.ORANGE)
 
     speed_slider = Slider(20, 360, 260, 50, 1000, 500)
 
-    ui_elements = [size_input, btn_rand, input_box, btn_load, btn_mode, btn_prev, btn_play, btn_next, btn_reset,
-                   speed_slider]
+    # Group UI Elements
+    ui_elements = [size_input, btn_rand, input_box, btn_load, btn_mode, 
+                   btn_prev, btn_play, btn_next, btn_reset, speed_slider, btn_back]
 
+    # Initialize with default data
     viz.generate_random(5)
 
     running = True
@@ -427,27 +419,34 @@ def main():
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                return "quit"
 
             size_input.handle_event(event)
             input_box.handle_event(event)
             speed_slider.handle_event(event)
 
             if event.type == pygame.MOUSEBUTTONDOWN:
-                for btn in [btn_rand, btn_load, btn_mode, btn_prev, btn_play, btn_next, btn_reset]:
-                    btn.handle_event(event)
+                for btn in ui_elements:
+                    if isinstance(btn, Button):
+                        result = btn.handle_event(event)
+                        if result == "back":
+                            return "back"
 
             if event.type == pygame.MOUSEMOTION:
-                for btn in [btn_rand, btn_load, btn_mode, btn_prev, btn_play, btn_next, btn_reset]:
-                    btn.handle_event(event)
+                for btn in ui_elements:
+                    if isinstance(btn, Button):
+                        btn.handle_event(event)
+                    elif isinstance(btn, Slider):
+                        btn.handle_event(event)
 
         screen.fill(BG_COLOR)
 
-        # Sidebar
+        # Sidebar Background
         sidebar_rect = pygame.Rect(0, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
         pygame.draw.rect(screen, SIDEBAR_COLOR, sidebar_rect)
         pygame.draw.line(screen, Colors.TEAL, (SIDEBAR_WIDTH, 0), (SIDEBAR_WIDTH, SCREEN_HEIGHT), 2)
 
+        # Labels
         title = font_header.render("Bubble Sort", True, Colors.TEAL)
         screen.blit(title, (20, 20))
 
@@ -458,12 +457,15 @@ def main():
         # Update button text dynamically
         btn_mode.text = "Mode: ASC" if viz.sort_mode == "ASC" else "Mode: DESC"
 
+        # Draw UI
         for el in ui_elements:
             el.draw(screen)
 
+        # Status Message
         status_surf = font_ui.render(viz.status_msg, True, viz.status_color)
         screen.blit(status_surf, (20, 400))
 
+        # Statistics
         pygame.draw.line(screen, (50, 50, 50), (20, 430), (280, 430), 1)
         screen.blit(font_val.render("Statistics", True, TEXT_COLOR), (20, 440))
 
@@ -485,6 +487,7 @@ def main():
             surf = font_ui.render(txt, True, col)
             screen.blit(surf, (20, 470 + i * 25))
 
+        # Draw Visualization (Nodes)
         viz.draw_viz(screen)
 
         # Legend
@@ -506,9 +509,4 @@ def main():
         pygame.display.flip()
         clock.tick(60)
 
-    pygame.quit()
-
-
-if __name__ == "__main__":
-    main()
-    sys.exit()
+    return "back"
