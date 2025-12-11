@@ -282,10 +282,9 @@ def run(screen):
             idx_surf = font_ui.render(f"[{i}]", True, Colors.LIGHT_GREY)
             screen.blit(idx_surf, (x_pos - 35, y_pos + 8))
 
-        # Top Pointer
-        if state["stack"]:
-            top_y = bucket_bottom_y - (len(state["stack"])) * (ELEM_HEIGHT + SPACING) + SPACING + ELEM_HEIGHT // 2
-            top_x = bucket_center_x + ELEM_WIDTH // 2 + 10
+            # 2. Visualization
+            bucket_center_x = 650  # Shifted right slightly for wider screen
+            bucket_bottom_y = 650
 
             pygame.draw.line(screen, TEXT_COLOR, (top_x, top_y), (top_x + 30, top_y), 2)
             top_lbl = font_ui.render("TOP", True, TEXT_COLOR)

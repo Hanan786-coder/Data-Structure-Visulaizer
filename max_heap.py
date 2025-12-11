@@ -11,21 +11,21 @@ pygame.init()
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 700
 SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Priority Queue Visualizer (Max Cap 20)")
+pygame.display.set_caption("Max Heap Visualizer")
 
-# 🔷 COLORS (EXACT MATCH)
-ORANGE = (255, 108, 12)       # Highlight
-GREY = (57, 62, 70)           # Background
-TEAL = (0, 173, 181)          # Nodes and Buttons
-TEAL_BRIGHT = (0, 200, 210)   # Button Hover
-BLACK = (43, 40, 49)
-LIGHT_GREY = (238, 238, 238)
-WHITE = (255, 255, 255)
+# 🔷 COLORS (Matching your screenshot)
+ORANGE = (255, 108, 12)       # Title & Highlight
+GREY_BG = (57, 62, 70)        # Dark Background
+TEAL = (0, 173, 181)          # Buttons & Nodes
+TEAL_HOVER = (0, 200, 210)    # Button Hover
+BLACK = (43, 40, 49)          # Input Box BG
+WHITE = (255, 255, 255)       # Text
+LIGHT_GREY = (238, 238, 238)  # Labels
 ERROR_COLOR = (255, 87, 87)
 SUCCESS_COLOR = (0, 200, 81)
 
-# MAX LIMIT
-MAX_CAPACITY = 20
+# MAX CAPACITY (Tree levels limit)
+MAX_CAPACITY = 31
 
 # -------------------------------------------------------------------------
 # FONTS
@@ -39,8 +39,7 @@ def get_font(size):
 font_title = get_font(35)
 font_ui = get_font(18)
 font_msg = get_font(16)
-# Smaller font for nodes to fit 20 items
-font_node_small = get_font(12) 
+font_node = get_font(14)
 
 # -------------------------------------------------------------------------
 # UI CLASSES
@@ -54,7 +53,7 @@ class Button:
         self.is_hovered = False
 
     def draw(self, surface):
-        color = TEAL_BRIGHT if self.is_hovered else TEAL
+        color = TEAL_HOVER if self.is_hovered else TEAL
         pygame.draw.rect(surface, color, self.rect, border_radius=8)
 
         txt_surf = font_ui.render(self.text, True, LIGHT_GREY)
@@ -69,7 +68,7 @@ class Button:
 
 
 class InputBox:
-    def __init__(self, x, y, w, h, text='', numeric_only=False, max_chars=8):
+    def __init__(self, x, y, w, h, text='', numeric_only=False, max_chars=12):
         self.rect = pygame.Rect(x, y, w, h)
         self.color = TEAL
         self.text = text
@@ -83,7 +82,7 @@ class InputBox:
                 self.active = not self.active
             else:
                 self.active = False
-            self.color = TEAL_BRIGHT if self.active else TEAL
+            self.color = TEAL_HOVER if self.active else TEAL
             
         if event.type == pygame.KEYDOWN:
             if self.active:
@@ -111,20 +110,19 @@ class InputBox:
         surface.blit(txt_surface, (self.rect.x + 10, self.rect.y + 10))
 
 # -------------------------------------------------------------------------
-# DATA STRUCTURE LOGIC: MAX-HEAP
+# DATA STRUCTURE: MAX HEAP (No Priority Dictionary)
 # -------------------------------------------------------------------------
 
 class MaxHeap:
-    def __init__(self, capacity=6):
+    def __init__(self, capacity=15):
         self.heap = []
         self.capacity = capacity
 
     def set_capacity(self, new_cap):
         self.capacity = new_cap
-        # Truncate if current size > new capacity
         if len(self.heap) > new_cap:
             self.heap = self.heap[:new_cap]
-            return True # Indicates truncation occurred
+            return True 
         return False
 
     def parent(self, i): return (i - 1) // 2
@@ -134,24 +132,30 @@ class MaxHeap:
     def swap(self, i, j):
         self.heap[i], self.heap[j] = self.heap[j], self.heap[i]
 
-    def insert(self, value, priority):
+    def insert(self, val_str):
         if len(self.heap) >= self.capacity:
-            return False, f"Queue Overflow! Max capacity ({self.capacity}) reached."
+            return False, f"Heap Full! Max capacity ({self.capacity}) reached."
         
-        self.heap.append({'val': value, 'prio': priority})
+        # 1. Convert to Integer for proper sorting (e.g., 10 > 2)
+        # If input is not a number, keep as string
+        try:
+            val = int(val_str)
+        except ValueError:
+            val = val_str 
+
+        self.heap.append(val)
         index = len(self.heap) - 1
         
-        # Bubble Up (MAX HEAP LOGIC: Parent must be larger than Child)
-        # If Parent < Child, we swap
-        while index > 0 and self.heap[self.parent(index)]['prio'] < self.heap[index]['prio']:
+        # 2. Bubble Up (Max Heap: Child > Parent means swap)
+        while index > 0 and self.heap[index] > self.heap[self.parent(index)]:
             self.swap(index, self.parent(index))
             index = self.parent(index)
             
-        return True, f"Inserted '{value}' (Prio {priority})."
+        return True, f"Inserted '{val}'."
 
     def extract_max(self):
         if not self.heap:
-            return None, "Queue Underflow! Queue is empty."
+            return None, "Heap is Empty!"
         
         max_item = self.heap[0]
         last_item = self.heap.pop()
@@ -160,17 +164,18 @@ class MaxHeap:
             self.heap[0] = last_item
             self.max_heapify(0)
             
-        return max_item, f"Extracted Max: '{max_item['val']}' (Prio {max_item['prio']})."
+        return max_item, f"Extracted Max: '{max_item}'."
 
     def max_heapify(self, i):
         largest = i
         l = self.left(i)
         r = self.right(i)
         
-        # MAX HEAP LOGIC: Check if Child > Current Largest
-        if l < len(self.heap) and self.heap[l]['prio'] > self.heap[largest]['prio']:
+        # Check Left
+        if l < len(self.heap) and self.heap[l] > self.heap[largest]:
             largest = l
-        if r < len(self.heap) and self.heap[r]['prio'] > self.heap[largest]['prio']:
+        # Check Right
+        if r < len(self.heap) and self.heap[r] > self.heap[largest]:
             largest = r
             
         if largest != i:
@@ -186,69 +191,56 @@ class MaxHeap:
         self.heap = []
 
 # -------------------------------------------------------------------------
-# MAIN VISUALIZER CLASS
+# MAIN VISUALIZER
 # -------------------------------------------------------------------------
 
 class Visualizer:
     def __init__(self):
-        self.pq = MaxHeap(capacity=6)
+        self.pq = MaxHeap(capacity=15)
         
         # --- UI LAYOUT ---
-        # 1. Capacity Row (Top)
-        self.input_cap = InputBox(50, 90, 80, 40, text="6", numeric_only=True, max_chars=2)
+        
+        # 1. Capacity Controls (Top Left)
+        self.input_cap = InputBox(50, 90, 80, 40, text="15", numeric_only=True, max_chars=2)
         btn_set = Button(140, 90, 100, 40, "Set Cap", "SET_CAP")
         
-        # 2. Operations Row (Below Capacity)
+        # 2. Main Inputs (Row 2) - "Prio" Removed, "Value" Expanded
         y_op = 160
-        # Reduced max_chars to 4 so it fits inside small tree nodes
-        self.input_val = InputBox(50, y_op, 140, 40, max_chars=4) 
-        self.input_prio = InputBox(210, y_op, 80, 40, numeric_only=True, max_chars=3)
+        self.input_val = InputBox(50, y_op, 200, 40, max_chars=10)
         
+        # Buttons shifted to account for removed Prio box
         self.buttons = [
             btn_set,
-            Button(300, y_op, 100, 40, "Insert", "INS"),
-            Button(420, y_op, 120, 40, "Extract Max", "EXT"), # Renamed Button
-            Button(560, y_op, 100, 40, "Peek", "PEEK"),
-            Button(680, y_op, 100, 40, "Clear", "CLR")
+            Button(270, y_op, 100, 40, "Insert", "INS"),
+            Button(390, y_op, 120, 40, "Extract Max", "EXT"), # Changed text from Min to Max
+            Button(530, y_op, 100, 40, "Peek", "PEEK"),
+            Button(650, y_op, 100, 40, "Clear", "CLR")
         ]
         
-        # State Messages
-        self.status_msg = "Welcome. Default Capacity: 6"
+        # State
+        self.status_msg = "Max Heap Ready."
         self.msg_color = WHITE
         self.logic_msg = "Waiting for operation..."
         
         # Visuals
         self.peek_highlight = False
         self.peek_timer = 0
-        
-        # Generate Node Positions dynamically for 20 nodes
         self.node_positions = self.generate_tree_layout()
 
     def generate_tree_layout(self):
-        """
-        Calculates geometric positions for a binary tree up to 20 nodes (Levels 0-4).
-        """
+        """ Calculate node coordinates for a perfect binary tree """
         positions = {}
         start_y = 280
-        level_height = 80 # Vertical space between levels
+        level_height = 80 
         
         for i in range(MAX_CAPACITY):
-            # 1. Determine Level (Depth)
             level = int(math.log2(i + 1))
-            
-            # 2. Determine index position within that level
             level_start_index = (1 << level) - 1
             pos_in_level = i - level_start_index
-            
-            # 3. Calculate max nodes in this level (for spacing)
             nodes_in_level = 1 << level
             
-            # 4. Calculate X
-            # Divide screen width into equal sections
             section_width = SCREEN_WIDTH / (nodes_in_level + 1)
             x = section_width * (pos_in_level + 1)
-            
-            # 5. Calculate Y
             y = start_y + (level * level_height)
             
             positions[i] = (x, y)
@@ -265,7 +257,6 @@ class Visualizer:
                 sys.exit()
                 
             self.input_val.handle_event(event)
-            self.input_prio.handle_event(event)
             self.input_cap.handle_event(event)
             
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -284,80 +275,75 @@ class Visualizer:
     def execute_action(self, code):
         self.peek_highlight = False 
         
-        # --- SET CAPACITY ---
+        # --- SET CAP ---
         if code == "SET_CAP":
             txt = self.input_cap.text
             if not txt: return
             try:
                 val = int(txt)
                 if val > MAX_CAPACITY:
-                    self.set_status(f"Error: Max Capacity is {MAX_CAPACITY}!", ERROR_COLOR, f"Constraint: Max {MAX_CAPACITY}")
+                    self.set_status(f"Error: Max Limit is {MAX_CAPACITY}", ERROR_COLOR)
                     self.input_cap.text = str(MAX_CAPACITY)
                 elif val < 1:
-                    self.set_status("Error: Min Capacity is 1!", ERROR_COLOR)
+                    self.set_status("Error: Min Capacity 1", ERROR_COLOR)
                 else:
                     truncated = self.pq.set_capacity(val)
-                    if truncated:
-                        self.set_status(f"Capacity set to {val}. Truncated.", ERROR_COLOR, "Rear elements removed")
-                    else:
-                        self.set_status(f"Capacity set to {val}.", SUCCESS_COLOR, "New Max Capacity applied")
+                    msg = f"Capacity set to {val}." + (" (Truncated)" if truncated else "")
+                    self.set_status(msg, SUCCESS_COLOR, "Heap Resized")
             except ValueError:
-                self.set_status("Invalid Capacity Number", ERROR_COLOR)
+                self.set_status("Invalid Capacity", ERROR_COLOR)
 
         # --- INSERT ---
         elif code == "INS":
             val = self.input_val.text
-            prio = self.input_prio.text
-            if val and prio:
-                success, msg = self.pq.insert(val, int(prio))
+            if val:
+                # Direct insertion of value
+                success, msg = self.pq.insert(val)
                 if success:
-                    self.set_status(msg, SUCCESS_COLOR, "Inserted at leaf -> Bubbled Up")
+                    self.set_status(msg, SUCCESS_COLOR, f"Insert {val} -> Bubble Up")
                     self.input_val.text = ""
-                    self.input_prio.text = ""
                 else:
-                    self.set_status(msg, ERROR_COLOR, "Heap is Full")
+                    self.set_status(msg, ERROR_COLOR, "Heap Full")
             else:
-                self.set_status("Enter Value and Priority!", ERROR_COLOR)
+                self.set_status("Enter a Value!", ERROR_COLOR)
 
-        # --- EXTRACT ---
+        # --- EXTRACT MAX ---
         elif code == "EXT":
             item, msg = self.pq.extract_max()
-            if item:
-                self.set_status(msg, SUCCESS_COLOR, "Root removed -> Last Node to Root -> Bubble Down")
+            if item is not None:
+                self.set_status(msg, SUCCESS_COLOR, "Swap Root/Last -> Remove Last -> Heapify")
             else:
                 self.set_status(msg, ERROR_COLOR)
 
         # --- PEEK ---
         elif code == "PEEK":
             item = self.pq.peek()
-            if item:
-                self.set_status(f"Front: {item['val']} ({item['prio']})", ORANGE, "Returning root node")
+            if item is not None:
+                self.set_status(f"Max Value: {item}", ORANGE, "Root Node")
                 self.peek_highlight = True
                 self.peek_timer = pygame.time.get_ticks()
             else:
-                self.set_status("Queue is Empty", ERROR_COLOR)
+                self.set_status("Heap is Empty", ERROR_COLOR)
 
         # --- CLEAR ---
         elif code == "CLR":
             self.pq.clear()
-            self.set_status("Queue Cleared", WHITE, "All items removed")
+            self.set_status("Heap Cleared", WHITE, "Reset")
 
     def draw_tree_connection(self, i, parent_i):
         if i >= len(self.pq.heap): return
         start = self.node_positions[parent_i]
         end = self.node_positions[i]
-        # Thinner line for dense tree
         pygame.draw.line(SCREEN, LIGHT_GREY, start, end, 2)
 
-    def draw_node(self, i, data):
+    def draw_node(self, i, val):
         pos = self.node_positions[i]
         
-        # SMALLER SIZE for 20 nodes support
-        w, h = 48, 30
+        w, h = 45, 45
         rect = pygame.Rect(0, 0, w, h)
         rect.center = pos
         
-        # Color Logic
+        # Color Logic for Peek
         color = TEAL
         if self.peek_highlight and i == 0:
             if pygame.time.get_ticks() - self.peek_timer < 1000:
@@ -368,17 +354,17 @@ class Visualizer:
         pygame.draw.rect(SCREEN, color, rect, border_radius=6)
         pygame.draw.rect(SCREEN, LIGHT_GREY, rect, 1, border_radius=6)
         
-        # Compact Text: "Val(P)"
-        txt = f"{data['val']}({data['prio']})"
-        txt_surf = font_node_small.render(txt, True, BLACK)
+        # Draw Value Only (No Priority)
+        txt = str(val)
+        txt_surf = font_node.render(txt, True, BLACK)
         txt_rect = txt_surf.get_rect(center=rect.center)
         SCREEN.blit(txt_surf, txt_rect)
 
     def draw(self):
-        SCREEN.fill(GREY)
+        SCREEN.fill(GREY_BG)
         
         # 1. Header
-        title_surf = font_title.render("PRIORITY QUEUE (MAX-HEAP)", True, ORANGE)
+        title_surf = font_title.render("MAX HEAP", True, ORANGE)
         SCREEN.blit(title_surf, (50, 30))
         
         # 2. Controls Area
@@ -387,31 +373,28 @@ class Visualizer:
         SCREEN.blit(lbl_cap, (50, 65))
         self.input_cap.draw(SCREEN)
         
-        # Row 2: Inputs
+        # Row 2: Value Input Only (Priority removed)
         lbl_val = font_ui.render("Value:", True, LIGHT_GREY)
-        lbl_prio = font_ui.render("Prio:", True, LIGHT_GREY)
         SCREEN.blit(lbl_val, (50, 135))
-        SCREEN.blit(lbl_prio, (210, 135))
-        
         self.input_val.draw(SCREEN)
-        self.input_prio.draw(SCREEN)
         
+        # Buttons
         for btn in self.buttons:
             btn.draw(SCREEN)
             
-        # 3. Status Messages 
+        # 3. Status Messages (Right Side)
         s_surf = font_ui.render(self.status_msg, True, self.msg_color)
         SCREEN.blit(s_surf, (550, 40))
         
         l_lbl = font_ui.render("Logic Flow:", True, LIGHT_GREY)
         SCREEN.blit(l_lbl, (550, 70))
-        l_surf = font_msg.render(f"> {self.logic_msg}", True, TEAL_BRIGHT)
+        l_surf = font_msg.render(f"> {self.logic_msg}", True, TEAL_HOVER)
         SCREEN.blit(l_surf, (550, 95))
 
-        # 4. Visualization Area
+        # 4. Visualization Area Divider
         pygame.draw.line(SCREEN, TEAL, (0, 240), (SCREEN_WIDTH, 240), 2)
         
-        # Draw Lines first
+        # Draw Connectors first
         for i in range(1, len(self.pq.heap)):
             self.draw_tree_connection(i, self.pq.parent(i))
             
@@ -428,9 +411,6 @@ class Visualizer:
             self.draw()
             clock.tick(60)
 
-# -------------------------------------------------------------------------
-# EXECUTION
-# -------------------------------------------------------------------------
 if __name__ == "__main__":
     app = Visualizer()
     app.run()
