@@ -45,7 +45,7 @@ font_header = get_font(28, bold=True)
 font_ui = get_font(16)
 font_val = get_font(20, bold=True)
 font_small = get_font(14)
-font_logic = get_font(22)  # Slightly larger for the logic readout
+font_logic = get_font(22)
 
 
 # --- UI Components ---
@@ -94,7 +94,7 @@ class InputBox:
                 if self.numeric_only:
                     if event.unicode.isdigit(): valid = True
                 else:
-                    if event.unicode.isdigit() or event.unicode == ',': valid = True
+                    if event.unicode.isdigit() or event.unicode in ', ': valid = True
 
                 if valid and len(self.text) < self.max_chars:
                     self.text += event.unicode
@@ -155,6 +155,7 @@ class BubbleSortVisualizer:
         self.finished = False
         self.status_msg = "Welcome"
         self.status_color = TEXT_COLOR
+        self.sort_mode = "ASC"  # "ASC" or "DESC"
 
     def set_msg(self, msg, color=TEXT_COLOR):
         self.status_msg = msg
@@ -182,22 +183,32 @@ class BubbleSortVisualizer:
                 self.array = new_arr
                 self.set_msg("Manual Input Loaded", Colors.TEAL)
                 self.precompute_history()
+                return True
             else:
                 self.set_msg("Error: Input count must be 2-8", ERROR_COLOR)
         except ValueError:
             self.set_msg("Error: Numbers only", ERROR_COLOR)
+        return False
+
+    def toggle_sort_mode(self):
+        self.sort_mode = "DESC" if self.sort_mode == "ASC" else "ASC"
+        if self.array:
+            self.precompute_history()
 
     def precompute_history(self):
         self.history = []
         arr = self.array[:]
         n = len(arr)
+        is_asc = self.sort_mode == "ASC"
+        op_str = ">" if is_asc else "<"
+        mode_label = "Ascending" if is_asc else "Descending"
 
         # Initial State
         self.history.append({
             'arr': arr[:],
             'colors': [NODE_COLOR] * n,
             'stats': (0, 0),
-            'desc': "Algorithm Started"
+            'desc': f"Start ({mode_label})"
         })
 
         comps = 0
@@ -207,6 +218,7 @@ class BubbleSortVisualizer:
             for j in range(0, n - i - 1):
                 # 1. Compare State
                 colors = [NODE_COLOR] * n
+                # Mark sorted part
                 for k in range(n - i, n): colors[k] = SORTED_COLOR
 
                 colors[j] = COMPARE_COLOR
@@ -217,10 +229,13 @@ class BubbleSortVisualizer:
                     'arr': arr[:],
                     'colors': colors[:],
                     'stats': (comps, swaps),
-                    'desc': f"Comparing {arr[j]} > {arr[j + 1]}?"
+                    'desc': f"Comparing {arr[j]} {op_str} {arr[j + 1]}?"
                 })
 
-                if arr[j] > arr[j + 1]:
+                # Logic Check
+                should_swap = arr[j] > arr[j + 1] if is_asc else arr[j] < arr[j + 1]
+
+                if should_swap:
                     # 2. Swap Needed State
                     colors[j] = SWAP_COLOR
                     colors[j + 1] = SWAP_COLOR
@@ -228,7 +243,7 @@ class BubbleSortVisualizer:
                         'arr': arr[:],
                         'colors': colors[:],
                         'stats': (comps, swaps),
-                        'desc': f"Swapping {arr[j]} and {arr[j + 1]}"
+                        'desc': "Condition Met: Swapping..."
                     })
 
                     # Perform Swap
@@ -240,7 +255,7 @@ class BubbleSortVisualizer:
                         'arr': arr[:],
                         'colors': colors[:],
                         'stats': (comps, swaps),
-                        'desc': "Swap Complete"
+                        'desc': "Swapped"
                     })
 
             # Element Sorted
@@ -250,7 +265,7 @@ class BubbleSortVisualizer:
                 'arr': arr[:],
                 'colors': colors[:],
                 'stats': (comps, swaps),
-                'desc': f"Element {arr[n - i - 1]} is Sorted"
+                'desc': f"Element {arr[n - i - 1]} Sorted"
             })
 
         # Final Sorted State
@@ -258,7 +273,7 @@ class BubbleSortVisualizer:
             'arr': arr[:],
             'colors': [SORTED_COLOR] * n,
             'stats': (comps, swaps),
-            'desc': "Array is Fully Sorted"
+            'desc': "Algorithm Complete"
         })
 
         self.reset()
@@ -306,7 +321,7 @@ class BubbleSortVisualizer:
         total_w = len(arr) * (NODE_W + GAP) - GAP
         start_x = SIDEBAR_WIDTH + (SCREEN_WIDTH - SIDEBAR_WIDTH - total_w) // 2
 
-        # --- Logic Flow Display (Moved Here) ---
+        # --- Logic Flow Display ---
         label_x = SIDEBAR_WIDTH + 40
         label_y = 40
 
@@ -319,7 +334,7 @@ class BubbleSortVisualizer:
         desc_surf = font_logic.render(desc_txt, True, Colors.TEAL_BRIGHT)
         surface.blit(desc_surf, (label_x, label_y + 25))
 
-        # --- Draw Nodes & Arrows ---
+        # --- Draw Nodes & Arrows (Linked List Style) ---
         for i, val in enumerate(arr):
             x = start_x + i * (NODE_W + GAP)
             y = START_Y
@@ -333,6 +348,7 @@ class BubbleSortVisualizer:
             idx = font_small.render(str(i), True, (100, 100, 100))
             surface.blit(idx, (rect.centerx - 5, rect.bottom + 5))
 
+            # Draw Arrow
             if i < len(arr) - 1:
                 arrow_start = (rect.right, rect.centery)
                 arrow_end = (rect.right + GAP, rect.centery)
@@ -357,7 +373,9 @@ def btn_rand_action():
         viz.set_msg("Size must be a number", ERROR_COLOR)
 
 
-def btn_load_action(): viz.load_manual(input_box.text)
+def btn_load_action():
+    if viz.load_manual(input_box.text):
+        input_box.text = ""
 
 
 def btn_prev_action(): viz.prev_step(); viz.playing = False
@@ -372,108 +390,125 @@ def btn_next_action(): viz.next_step(); viz.playing = False
 def btn_reset_action(): viz.reset()
 
 
-# Layout
-size_input = InputBox(20, 75, 50, 35, text="5", numeric_only=True, max_chars=1)
-btn_rand = Button(80, 75, 200, 35, "Randomize (Size 2-8)", btn_rand_action)
-
-input_box = InputBox(20, 145, 190, 35, text="")
-btn_load = Button(220, 145, 60, 35, "Load", btn_load_action)
-
-btn_prev = Button(20, 240, 80, 40, "Prev", btn_prev_action)
-btn_play = Button(110, 240, 80, 40, "Play/||", btn_play_action)
-btn_next = Button(200, 240, 80, 40, "Next", btn_next_action)
-btn_reset = Button(20, 290, 260, 35, "Reset", btn_reset_action, color=Colors.ORANGE)
-
-speed_slider = Slider(20, 360, 260, 50, 1000, 500)
-
-ui_elements = [size_input, btn_rand, input_box, btn_load, btn_prev, btn_play, btn_next, btn_reset, speed_slider]
-
-viz.generate_random(5)
-
-# --- Main Loop ---
-running = True
-while running:
-    viz.update(speed_slider.val)
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-
-        size_input.handle_event(event)
-        input_box.handle_event(event)
-        speed_slider.handle_event(event)
-
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            for btn in [btn_rand, btn_load, btn_prev, btn_play, btn_next, btn_reset]:
-                btn.handle_event(event)
-
-        if event.type == pygame.MOUSEMOTION:
-            for btn in [btn_rand, btn_load, btn_prev, btn_play, btn_next, btn_reset]:
-                btn.handle_event(event)
-
-    screen.fill(BG_COLOR)
-
-    # Sidebar
-    sidebar_rect = pygame.Rect(0, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
-    pygame.draw.rect(screen, SIDEBAR_COLOR, sidebar_rect)
-    pygame.draw.line(screen, Colors.TEAL, (SIDEBAR_WIDTH, 0), (SIDEBAR_WIDTH, SCREEN_HEIGHT), 2)
-
-    title = font_header.render("Bubble Sort", True, Colors.TEAL)
-    screen.blit(title, (20, 20))
-
-    screen.blit(font_small.render("1. Set Array Size (2-8):", True, TEXT_COLOR), (20, 55))
-    screen.blit(font_small.render("2. Manual Input :", True, TEXT_COLOR), (20, 125))
-    screen.blit(font_small.render("3. Controls:", True, TEXT_COLOR), (20, 220))
-
-    for el in ui_elements:
-        el.draw(screen)
-
-    status_surf = font_ui.render(viz.status_msg, True, viz.status_color)
-    screen.blit(status_surf, (20, 400))
-
-    pygame.draw.line(screen, (50, 50, 50), (20, 430), (280, 430), 1)
-    screen.blit(font_val.render("Statistics", True, TEXT_COLOR), (20, 440))
-
-    curr_comps = 0
-    curr_swaps = 0
-    if viz.history:
-        curr_comps, curr_swaps = viz.history[viz.step_index]['stats']
-
-    stats_info = [
-        f"Comparisons: {curr_comps}",
-        f"Swaps: {curr_swaps}",
-        f"Step: {viz.step_index + 1} / {len(viz.history)}",
-        "Time: O(n²)",
-        "Space: O(1)"
-    ]
-
-    for i, txt in enumerate(stats_info):
-        col = Colors.ORANGE if i < 3 else TEXT_COLOR
-        surf = font_ui.render(txt, True, col)
-        screen.blit(surf, (20, 470 + i * 25))
-
-    viz.draw_viz(screen)
-
-    # Legend
-    leg_y = 650
-    leg_x = SIDEBAR_WIDTH + 50
+def btn_mode_action(): viz.toggle_sort_mode()
 
 
-    def draw_legend(x, color, text):
-        r = pygame.Rect(x, leg_y, 20, 20)
-        pygame.draw.rect(screen, color, r, border_radius=4)
-        t = font_small.render(text, True, TEXT_COLOR)
-        screen.blit(t, (x + 30, leg_y + 2))
-        return x + 120
+def main():
+    global viz, size_input, input_box, btn_load, btn_mode, btn_rand, btn_prev, btn_play, btn_next, btn_reset, speed_slider, ui_elements
+
+    # UI Layout
+    # 1. Size
+    size_input = InputBox(20, 75, 50, 35, text="5", numeric_only=True, max_chars=1)
+    btn_rand = Button(80, 75, 200, 35, "Randomize (Size 2-8)", btn_rand_action)
+
+    # 2. Manual
+    input_box = InputBox(20, 145, 190, 35, text="")
+    btn_load = Button(220, 145, 60, 35, "Load", btn_load_action)
+
+    # 3. Sort Mode Button
+    btn_mode = Button(20, 185, 260, 35, "Mode: ASC", btn_mode_action, color=Colors.ORANGE)
+
+    # 4. Playback
+    btn_prev = Button(20, 240, 80, 40, "Prev", btn_prev_action)
+    btn_play = Button(110, 240, 80, 40, "Play/||", btn_play_action)
+    btn_next = Button(200, 240, 80, 40, "Next", btn_next_action)
+    btn_reset = Button(20, 290, 260, 35, "Reset", btn_reset_action, color=Colors.ORANGE)
+
+    speed_slider = Slider(20, 360, 260, 50, 1000, 500)
+
+    ui_elements = [size_input, btn_rand, input_box, btn_load, btn_mode, btn_prev, btn_play, btn_next, btn_reset,
+                   speed_slider]
+
+    viz.generate_random(5)
+
+    running = True
+    while running:
+        viz.update(speed_slider.val)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+            size_input.handle_event(event)
+            input_box.handle_event(event)
+            speed_slider.handle_event(event)
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                for btn in [btn_rand, btn_load, btn_mode, btn_prev, btn_play, btn_next, btn_reset]:
+                    btn.handle_event(event)
+
+            if event.type == pygame.MOUSEMOTION:
+                for btn in [btn_rand, btn_load, btn_mode, btn_prev, btn_play, btn_next, btn_reset]:
+                    btn.handle_event(event)
+
+        screen.fill(BG_COLOR)
+
+        # Sidebar
+        sidebar_rect = pygame.Rect(0, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
+        pygame.draw.rect(screen, SIDEBAR_COLOR, sidebar_rect)
+        pygame.draw.line(screen, Colors.TEAL, (SIDEBAR_WIDTH, 0), (SIDEBAR_WIDTH, SCREEN_HEIGHT), 2)
+
+        title = font_header.render("Bubble Sort", True, Colors.TEAL)
+        screen.blit(title, (20, 20))
+
+        screen.blit(font_small.render("1. Set Array Size (2-8):", True, TEXT_COLOR), (20, 55))
+        screen.blit(font_small.render("2. Manual Input :", True, TEXT_COLOR), (20, 125))
+        screen.blit(font_small.render("3. Controls:", True, TEXT_COLOR), (20, 220))
+
+        # Update button text dynamically
+        btn_mode.text = "Mode: ASC" if viz.sort_mode == "ASC" else "Mode: DESC"
+
+        for el in ui_elements:
+            el.draw(screen)
+
+        status_surf = font_ui.render(viz.status_msg, True, viz.status_color)
+        screen.blit(status_surf, (20, 400))
+
+        pygame.draw.line(screen, (50, 50, 50), (20, 430), (280, 430), 1)
+        screen.blit(font_val.render("Statistics", True, TEXT_COLOR), (20, 440))
+
+        curr_comps = 0
+        curr_swaps = 0
+        if viz.history:
+            curr_comps, curr_swaps = viz.history[viz.step_index]['stats']
+
+        stats_info = [
+            f"Comparisons: {curr_comps}",
+            f"Swaps: {curr_swaps}",
+            f"Step: {viz.step_index + 1} / {len(viz.history)}",
+            "Time: O(n²)",
+            "Space: O(1)"
+        ]
+
+        for i, txt in enumerate(stats_info):
+            col = Colors.ORANGE if i < 3 else TEXT_COLOR
+            surf = font_ui.render(txt, True, col)
+            screen.blit(surf, (20, 470 + i * 25))
+
+        viz.draw_viz(screen)
+
+        # Legend
+        leg_y = 650
+        leg_x = SIDEBAR_WIDTH + 50
+
+        def draw_legend(x, color, text):
+            r = pygame.Rect(x, leg_y, 20, 20)
+            pygame.draw.rect(screen, color, r, border_radius=4)
+            t = font_small.render(text, True, TEXT_COLOR)
+            screen.blit(t, (x + 30, leg_y + 2))
+            return x + 120
+
+        lx = draw_legend(leg_x, NODE_COLOR, "Idle")
+        lx = draw_legend(lx, COMPARE_COLOR, "Compare")
+        lx = draw_legend(lx, SWAP_COLOR, "Swap")
+        lx = draw_legend(lx, SORTED_COLOR, "Sorted")
+
+        pygame.display.flip()
+        clock.tick(60)
+
+    pygame.quit()
 
 
-    lx = draw_legend(leg_x, NODE_COLOR, "Idle")
-    lx = draw_legend(lx, COMPARE_COLOR, "Compare")
-    lx = draw_legend(lx, SWAP_COLOR, "Swap")
-    lx = draw_legend(lx, SORTED_COLOR, "Sorted")
-
-    pygame.display.flip()
-    clock.tick(60)
-
-pygame.quit()
-sys.exit()
+if __name__ == "__main__":
+    main()
+    sys.exit()
