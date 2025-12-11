@@ -1,6 +1,9 @@
 import pygame
 from button_template import Button
 import Colors
+import importlib.util
+import os
+import sys
 
 
 class Node:
@@ -23,9 +26,9 @@ class Node:
         screen.blit(self.text, text_rect)
 
         if self == sll.head:
-            draw_pointer(self, "HEAD", Colors.LIGHT_GREY)
+            draw_pointer(self, "HEAD", Colors.LIGHT_GREY, screen)
         if self == sll.tail:
-            draw_pointer(self, "TAIL", Colors.LIGHT_GREY)
+            draw_pointer(self, "TAIL", Colors.LIGHT_GREY, screen)
 
         # Arrows
         if self.next is not None:
@@ -70,14 +73,6 @@ class Node:
             screen.blit(null_text, (null_x + 5, null_y - 10))
 
 
-# Initializing
-pygame.init()
-
-# Screen
-screen = pygame.display.set_mode((1000, 700))
-screen.fill(color=Colors.GREY)
-
-
 # Font helper
 def get_font(size):
     try:
@@ -114,7 +109,7 @@ def set_status(message, color, logic_message=""):
     logic_msg = logic_message
 
 
-def update_status_ui():
+def update_status_ui(screen):
     # Clear the area where status text is drawn to prevent overlap during animations
     pygame.draw.rect(screen, Colors.GREY, (480, 50, 450, 100))
 
@@ -165,7 +160,7 @@ class InputBar:
 
 
 # Helper pointer drawing
-def draw_pointer(node, text, color):
+def draw_pointer(node, text, color, screen):
     node_x = node.shape.x + node.shape.width // 2
 
     # Up-pointing triangle (same style as QUEUE FRONT)
@@ -223,7 +218,7 @@ def erase_pointer(screen, node, pointer_type="HEAD"):
         pygame.draw.rect(screen, Colors.GREY, clear_rect)
 
 
-def draw_pointer_on_head(node, text, color):
+def draw_pointer_on_head(node, text, color, screen):
     temp_x = node.shape.x + node.shape.width // 2
     temp_y = node.shape.y - 20
 
@@ -258,7 +253,7 @@ class SLL:
         self.currentPos = self.initialPos[self.size]
         self.nodes = []  # For drawing
 
-    def drawList(self):
+    def drawList(self, screen):
         for node in self.nodes:
             node.draw(screen, self)
 
@@ -280,9 +275,9 @@ class SLL:
         pygame.draw.rect(screen, Colors.GREY, clear_rect)
 
         # New List
-        self.drawList()
+        self.drawList(screen)
 
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -312,8 +307,8 @@ class SLL:
                 node.shape.x += 125
 
             # Redraw shifted nodes
-            self.drawList()
-            update_status_ui()
+            self.drawList(screen)
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(500)
 
@@ -331,11 +326,11 @@ class SLL:
         self.currentPos = (self.currentPos[0] + 125, self.currentPos[1])
 
         pygame.draw.rect(screen, Colors.GREY, (0, 370, 1000, 280))
-        self.drawList()
+        self.drawList(screen)
 
         set_status("New Node Inserted!", Colors.GREEN, "> newNode.next = head")
 
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -346,9 +341,9 @@ class SLL:
 
         set_status("Head Updated!", Colors.GREEN, "> head = newNode")
         pygame.draw.rect(screen, Colors.GREY, (0, 370, 1000, 280))
-        self.drawList()
+        self.drawList(screen)
 
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(500)
 
@@ -361,9 +356,9 @@ class SLL:
             set_status("Initializing...", Colors.ORANGE, "> temp = head")
             temp = self.head
 
-            draw_pointer_on_head(temp, "TEMP", Colors.ORANGE)
+            draw_pointer_on_head(temp, "TEMP", Colors.ORANGE, screen)
 
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(500)
 
@@ -371,7 +366,7 @@ class SLL:
             erase_pointer(screen, temp, "TEMP_ABOVE")
 
             set_status("Updating Head...", Colors.ORANGE, "> head = head.next")
-            draw_pointer(self.head, "TEMP", Colors.ORANGE)
+            draw_pointer(self.head, "TEMP", Colors.ORANGE, screen)
 
             if self.head.next:
                 self.head = self.head.next
@@ -379,15 +374,15 @@ class SLL:
                 self.head = None
                 self.tail = None
 
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(500)
 
             # Draw new HEAD pointer if exists
             if self.head:
-                draw_pointer(self.head, "HEAD", Colors.LIGHT_GREY)
+                draw_pointer(self.head, "HEAD", Colors.LIGHT_GREY, screen)
 
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(500)
 
@@ -407,7 +402,7 @@ class SLL:
                 self.currentPos = self.initialPos[self.size]
 
             set_status("Head Deleted!", Colors.GREEN, "> Success")
-            update_status_ui()
+            update_status_ui(screen)
             pygame.time.delay(500)
 
     def deleteTail(self, screen):
@@ -422,8 +417,8 @@ class SLL:
         set_status("Initializing...", Colors.ORANGE, "> temp = head")
         temp = self.head
 
-        draw_pointer_on_head(temp, "TEMP", Colors.ORANGE)
-        update_status_ui()
+        draw_pointer_on_head(temp, "TEMP", Colors.ORANGE, screen)
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(500)
 
@@ -439,9 +434,9 @@ class SLL:
 
             # Draw new pointer
             if self.length > 3:
-                draw_pointer(temp, "TEMP", Colors.ORANGE)
+                draw_pointer(temp, "TEMP", Colors.ORANGE, screen)
 
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(500)
 
@@ -461,20 +456,20 @@ class SLL:
         pygame.draw.rect(screen, Colors.GREY, clear_rect)
 
         # New List
-        self.drawList()
+        self.drawList(screen)
 
         erase_pointer(screen, self.tail, "TAIL")
         if self.length > 3:
-            draw_pointer(self.tail, "TEMP", Colors.ORANGE)
+            draw_pointer(self.tail, "TEMP", Colors.ORANGE, screen)
 
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
         self.currentPos = (self.tail.shape.x + 125, self.tail.shape.y)
 
         set_status("Tail Deleted!", Colors.GREEN, "> Success")
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(500)
 
@@ -498,7 +493,7 @@ class SLL:
 
         # 2. Traversal
         temp = self.head
-        draw_pointer_on_head(temp, "TEMP", Colors.ORANGE)
+        draw_pointer_on_head(temp, "TEMP", Colors.ORANGE, screen)
         pygame.display.update()
         pygame.time.delay(500)
 
@@ -510,8 +505,8 @@ class SLL:
 
             temp = temp.next
 
-            draw_pointer(temp, "TEMP", Colors.ORANGE)
-            update_status_ui()
+            draw_pointer(temp, "TEMP", Colors.ORANGE, screen)
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(500)
 
@@ -525,7 +520,7 @@ class SLL:
         text_rect = newNode.text.get_rect(center=newNode.shape.center)
         screen.blit(newNode.text, text_rect)
 
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(500)
 
@@ -546,7 +541,7 @@ class SLL:
                 (end_pos[0] - 10, end_pos[1] + 5)
             ])
 
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(500)
 
@@ -572,7 +567,7 @@ class SLL:
             (end_pos[0] - 10, end_pos[1] + 5)
         ])
 
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -599,15 +594,15 @@ class SLL:
             self.tail = newNode
 
         # Redraw List
-        pygame.draw.rect(screen, Colors.GREY, (0, 350, 1000, 350))
-        self.drawList()
+        pygame.draw.rect(screen, Colors.GREY, (0, 370, 1000, 350))
+        self.drawList(screen)
 
         if temp == self.head:
-            draw_pointer_on_head(temp, "TEMP", Colors.ORANGE)
+            draw_pointer_on_head(temp, "TEMP", Colors.ORANGE, screen)
         else:
-            draw_pointer(temp, "TEMP", Colors.ORANGE)
+            draw_pointer(temp, "TEMP", Colors.ORANGE, screen)
 
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(500)
 
@@ -618,7 +613,7 @@ class SLL:
             erase_pointer(screen, temp, "TEMP")
 
         set_status("Insertion Complete!", Colors.GREEN, "> Success")
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
 
     def deleteFromPos(self, pos, screen):
@@ -640,9 +635,9 @@ class SLL:
         prev = None
 
         # Draw initial status
-        draw_pointer_on_head(temp,"TEMP",Colors.ORANGE)
+        draw_pointer_on_head(temp,"TEMP",Colors.ORANGE, screen)
 
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(500)
 
@@ -662,13 +657,13 @@ class SLL:
             prev = temp
             temp = temp.next
 
-            draw_pointer(temp, "TEMP", Colors.ORANGE)
+            draw_pointer(temp, "TEMP", Colors.ORANGE, screen)
             if prev == self.head:
-                draw_pointer_on_head(prev, "PREV", Colors.TEAL_BRIGHT)
+                draw_pointer_on_head(prev, "PREV", Colors.TEAL_BRIGHT, screen)
             else:
-                draw_pointer(prev, "PREV", Colors.TEAL_BRIGHT)
+                draw_pointer(prev, "PREV", Colors.TEAL_BRIGHT, screen)
 
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(500)
 
@@ -702,7 +697,7 @@ class SLL:
                 (end_pos[0] + 7, end_pos[1] - 7)  # Right point
             ])
 
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(1000)
 
@@ -715,7 +710,7 @@ class SLL:
         erase_y = temp.shape.y + (temp.shape.height // 2) - 10
         pygame.draw.rect(screen, Colors.GREY, (erase_x, erase_y, 35, 20))
 
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -734,7 +729,7 @@ class SLL:
         self.currentPos = (self.currentPos[0] - 125, self.currentPos[1])
 
         set_status("Deletion Complete!", Colors.GREEN, "> Success")
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -751,8 +746,8 @@ class SLL:
         found = False
 
         # Draw initial pointer
-        draw_pointer_on_head(temp, "TEMP", Colors.ORANGE)
-        update_status_ui()
+        draw_pointer_on_head(temp, "TEMP", Colors.ORANGE, screen)
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -768,7 +763,7 @@ class SLL:
 
                 set_status(f"Found at Pos: {index}", Colors.GREEN, f"> return {index}")
 
-                update_status_ui()
+                update_status_ui(screen)
                 pygame.display.update()
                 pygame.time.delay(1000)
                 break
@@ -786,8 +781,8 @@ class SLL:
 
                 # If next node exists, draw pointer there
                 if temp is not None:
-                    draw_pointer(temp, "TEMP", Colors.ORANGE)
-                    update_status_ui()
+                    draw_pointer(temp, "TEMP", Colors.ORANGE, screen)
+                    update_status_ui(screen)
                     pygame.display.update()
                     pygame.time.delay(1000)
 
@@ -800,10 +795,10 @@ class SLL:
 
         if not found:
             set_status("Value Not Found", Colors.RED, "> return -1")
-            update_status_ui()
+            update_status_ui(screen)
         else:
             set_status("Search Complete", Colors.GREEN, "> Success")
-            update_status_ui()
+            update_status_ui(screen)
 
         pygame.display.update()
         pygame.time.delay(1000)
@@ -819,8 +814,8 @@ class SLL:
         while self.head is not None:
             temp = self.head
 
-            draw_pointer_on_head(temp, "TEMP", Colors.ORANGE)
-            update_status_ui()
+            draw_pointer_on_head(temp, "TEMP", Colors.ORANGE, screen)
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(300)
 
@@ -834,12 +829,12 @@ class SLL:
             self.length -= 1
 
             pygame.draw.rect(screen, Colors.GREY, (0, 360, 1000, 320))
-            self.drawList()
+            self.drawList(screen)
 
             if self.head:
-                draw_pointer(self.head, "HEAD", Colors.LIGHT_GREY)
+                draw_pointer(self.head, "HEAD", Colors.LIGHT_GREY, screen)
 
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(300)
 
@@ -849,9 +844,29 @@ class SLL:
         self.currentPos = self.initialPos[self.size]
 
         set_status("List Cleared!", Colors.GREEN, "> New Max Capacity Set")
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
-def main():
+def run(screen):
+    # Font loaders
+    titleFont = get_font(40)
+    paraFont = get_font(17)
+    subFont = get_font(13)
+    nodeFont = get_font(28)
+    logicFont = get_font(15)
+    statFont = get_font(19)
+    status_color = Colors.LIGHT_GREY
+
+    # Text rendering
+    title = titleFont.render("Singly Linked List", True, Colors.TEAL)
+    cap_value_txt = paraFont.render("Capacity (Max 6): ", True, Colors.LIGHT_GREY)
+    value_txt_1 = paraFont.render("Value: ", True, Colors.LIGHT_GREY)
+    value_txt_2 = paraFont.render("Value: ", True, Colors.LIGHT_GREY)
+    pos_txt_1 = paraFont.render("Pos: ", True, Colors.LIGHT_GREY)
+    pos_txt_2 = paraFont.render("Pos: ", True, Colors.LIGHT_GREY)
+
+    status_msg = "Ready"
+    logic_msg = "Waiting for a operation..."
+
     cap_bar = InputBar(100, 145, 130, 40, Colors.BLACK)
     cap_bar.text = "6"
     node_bar = InputBar(100, 230, 130, 40, Colors.BLACK, 4)
@@ -868,6 +883,7 @@ def main():
     destroy_button = Button(780, 170, 130, 50, "Destroy List", None, 18)
     delete_at_pos_button = Button(520, 315, 120, 40, "Delete", None, 18)
     search_button = Button(790, 315, 120, 40, "Search", None, 18)
+    back_button = Button(930, 15, 70, 35, "← Back", None, 18)
 
     sll = SLL(6)
     running = True
@@ -892,6 +908,7 @@ def main():
         destroy_button.draw(screen)
         delete_at_pos_button.draw(screen)
         search_button.draw(screen)
+        back_button.draw(screen)
 
         cap_bar.draw(screen)
         node_bar.draw(screen)
@@ -899,11 +916,11 @@ def main():
         pos_delete_bar.draw(screen)
         search_val_bar.draw(screen)
 
-        sll.drawList()
+        sll.drawList(screen)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                pygame.quit()
 
             if insert_tail_button.is_clicked(event):
                 if node_bar.text != "":
@@ -948,6 +965,8 @@ def main():
                     set_status("Invalid Position!", Colors.RED, "> ")
                 else:
                     sll.insertAtPos(node_bar.text, int(pos_insert_bar.text), screen)
+                    pos_insert_bar.text = ""
+                    node_bar.text = ""
             if delete_at_pos_button.is_clicked(event):
                 if pos_delete_bar.text == "":
                     set_status("Position can't be empty!", Colors.RED, "> ")
@@ -959,23 +978,25 @@ def main():
                     set_status("Invalid Position!", Colors.RED, "> ")
                 else:
                     sll.deleteFromPos(int(pos_delete_bar.text), screen)
+                    pos_delete_bar.text = ""
+                    node_bar.text = ""
             if search_button.is_clicked(event):
                 if search_val_bar.text == "":
                     set_status("Value can't be empty!", Colors.RED, "> ")
                 else:
                     sll.search(search_val_bar.text, screen)
+                    search_val_bar.text = ""
 
+            if back_button.is_clicked(event):
+                return "back"
+        
             cap_bar.handle_input(event)
             node_bar.handle_input(event)
             pos_insert_bar.handle_input(event)
             pos_delete_bar.handle_input(event)
             search_val_bar.handle_input(event)
 
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         clock.tick(60)
-
-    pygame.quit()
-
-if __name__ == "__main__":
-    main()
+    return "back"

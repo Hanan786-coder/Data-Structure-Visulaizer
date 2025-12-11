@@ -2,11 +2,11 @@ import pygame
 from button_template import Button
 import Colors
 
-# initialization
-pygame.init()
-screen = pygame.display.set_mode((1000, 700))
-pygame.display.set_caption("Singly Circular Linked List (Tail Pointer Only)")
-screen.fill(color=Colors.GREY)
+
+status_msg = "Ready"
+logic_msg = "Waiting for operation..."
+status_color = Colors.LIGHT_GREY
+
 
 # fonts
 def get_font(size):
@@ -27,20 +27,31 @@ status_msg = "Ready"
 logic_msg = "Waiting for operation..."
 status_color = Colors.LIGHT_GREY
 
+# Text rendering
+title = titleFont.render("Circular Linked List", True, Colors.TEAL)
+cap_value_txt = paraFont.render("Capacity (Max 6): ", True, Colors.LIGHT_GREY)
+value_txt_1 = paraFont.render("Value: ", True, Colors.LIGHT_GREY)
+value_txt_2 = paraFont.render("Value: ", True, Colors.LIGHT_GREY)
+pos_txt_1 = paraFont.render("Pos: ", True, Colors.LIGHT_GREY)
+del_pos_txt = paraFont.render("Pos: ", True, Colors.LIGHT_GREY)
+
+status_msg = "Ready"
+logic_msg = "Waiting for operation..."
+
 def set_status(message, color, logic_message=""):
-    global status_msg, status_color, logic_msg
+    global status_msg, status_color, logic_msg 
     status_msg = message
     status_color = color
     logic_msg = logic_message
 
-def update_status_ui():
+def update_status_ui(screen):
     pygame.draw.rect(screen, Colors.GREY, (480, 50, 450, 100))
-    
+
     logic_lbl = statFont.render("Logic Flow: ", True, Colors.LIGHT_GREY)
     screen.blit(logic_lbl, (500, 90))
     logic_txt = logicFont.render(f"{logic_msg}", True, Colors.TEAL_BRIGHT)
     screen.blit(logic_txt, (500, 115))
-    
+
     status_surf = nodeFont.render(status_msg, True, status_color)
     screen.blit(status_surf, (500, 50))
 
@@ -79,7 +90,7 @@ class InputBar:
         screen.blit(self.text_rendered, (self.shape.x + 2, self.shape.y + 5))
 
 # Helper pointer drawing
-def draw_pointer(node, text, color):
+def draw_pointer(node, text, color, screen):
     node_x = node.shape.x + node.shape.width // 2
 
     # Up-pointing triangle (same style as QUEUE FRONT)
@@ -137,7 +148,7 @@ def erase_pointer(screen, node, pointer_type="LAST"):
         pygame.draw.rect(screen, Colors.GREY, clear_rect)
 
 
-def draw_pointer_on_last(node, text, color):
+def draw_pointer_on_last(node, text, color, screen):
     temp_x = node.shape.x + node.shape.width // 2
     temp_y = node.shape.y - 20
 
@@ -172,7 +183,7 @@ class SCLLNode:
         screen.blit(self.text, text_rect)
 
         if scll.last is not None and self == scll.last:
-            draw_pointer(self, "LAST", Colors.LIGHT_GREY)
+            draw_pointer(self, "LAST", Colors.LIGHT_GREY, screen)
 
         # next
         start_x = self.shape.x + self.shape.width
@@ -244,7 +255,7 @@ class SCLL:
         self.start_x_coord = 120
         self.currentPos = (self.start_x_coord, 480)
 
-    def drawList(self):
+    def drawList(self, screen):
         for node in self.nodes:
             node.draw(screen, self)
 
@@ -257,13 +268,13 @@ class SCLL:
             start_x += 125
         self.currentPos = (start_x, y_pos)
 
-    def _redraw(self):
+    def _redraw(self, screen):
         pygame.draw.rect(screen, Colors.GREY, (0, 370, 1000, 330))
-        self.drawList()
-        update_status_ui()
+        self.drawList(screen)
+        update_status_ui(screen)
         pygame.display.update()
 
-    def insertAtEnd(self, data):
+    def insertAtEnd(self, data, screen):
         if self.length >= self.size:
             set_status("Limit Reached!", Colors.RED, "> Capacity Full")
             return
@@ -273,7 +284,7 @@ class SCLL:
         self.currentPos = (self.currentPos[0] + 125, self.currentPos[1])
         
         set_status(f"Node Created: {data}", Colors.GREEN, "> newNode = Node(data)")
-        self._redraw()
+        self._redraw(screen)
         pygame.time.delay(1000)
 
         if self.last is None:
@@ -297,7 +308,7 @@ class SCLL:
                 
                 # Draw LAST pointer if applicable
                 if node == old_last:
-                    draw_pointer(node, "LAST", Colors.LIGHT_GREY)
+                    draw_pointer(node, "LAST", Colors.LIGHT_GREY, screen)
                 
                 # Draw normal connections (not the wrap-around)
                 # Skip drawing if it's the circular connection from last to first
@@ -317,7 +328,7 @@ class SCLL:
                                 (end_x - arrow_size, end_y + arrow_size)
                             ])
             
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(1000)
 
@@ -335,7 +346,7 @@ class SCLL:
                 (end_x - arrow_size, end_y - arrow_size),
                 (end_x - arrow_size, end_y + arrow_size)
             ])
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(1000)
 
@@ -363,7 +374,7 @@ class SCLL:
                 (end_x - arrow_size, end_y - arrow_size),
                 (end_x - arrow_size, end_y + arrow_size)
             ])
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(1000)
 
@@ -373,15 +384,15 @@ class SCLL:
             # Erase old LAST pointer and draw new one
             erase_pointer(screen, old_last, "LAST")
             draw_pointer(newNode, "LAST", Colors.LIGHT_GREY)
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(500)
 
         self.length += 1
-        self._redraw()
+        self._redraw(screen)
         pygame.time.delay(500)
 
-    def insertAtBeginning(self, data):
+    def insertAtBeginning(self, data, screen):
         if self.length >= self.size:
             set_status("Limit Reached!", Colors.RED, "> Capacity Full")
             return
@@ -391,8 +402,8 @@ class SCLL:
             pygame.draw.rect(screen, Colors.GREY, (0, 370, 1000, 280))
             for node in self.nodes:
                 node.shape.x += 125
-            self.drawList()
-            update_status_ui()
+            self.drawList(screen)
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(1000)
 
@@ -403,7 +414,7 @@ class SCLL:
         set_status("Creating Node...", Colors.ORANGE, "> newNode = Node(data)")
         self.nodes.insert(0, newNode)
         self.currentPos = (self.currentPos[0] + 125, self.currentPos[1])
-        self._redraw()
+        self._redraw(screen)
         pygame.time.delay(1000)
 
         if self.last is None:
@@ -427,7 +438,7 @@ class SCLL:
                 
                 # Draw LAST pointer if applicable
                 if node == old_last:
-                    draw_pointer(node, "LAST", Colors.LIGHT_GREY)
+                    draw_pointer(node, "LAST", Colors.LIGHT_GREY, screen)
                 
                 # Draw normal connections (not the wrap-around)
                 if node.next is not None:
@@ -445,7 +456,7 @@ class SCLL:
                                 (end_x - arrow_size, end_y + arrow_size)
                             ])
             
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(1000)
             
@@ -463,7 +474,7 @@ class SCLL:
                 (end_x - arrow_size, end_y - arrow_size),
                 (end_x - arrow_size, end_y + arrow_size)
             ])
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(1000)
             
@@ -490,23 +501,23 @@ class SCLL:
                 (end_x - arrow_size, end_y - arrow_size),
                 (end_x - arrow_size, end_y + arrow_size)
             ])
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(200)
         set_status("Added!!", Colors.ORANGE, "> Success")
         self.length += 1
-        self._redraw()
+        self._redraw(screen)
         pygame.time.delay(500)
 
-    def insertAtPosition(self, data, pos):
+    def insertAtPosition(self, data, pos, screen):
         if pos < 1 or pos > self.length + 1:
             set_status("Invalid Position", Colors.RED)
             return
         if pos == 1: 
-            self.insertAtBeginning(data)
+            self.insertAtBeginning(data, screen)
             return
         if pos == self.length + 1: 
-            self.insertAtEnd(data)
+            self.insertAtEnd(data, screen)
             return
         if self.length >= self.size: 
             set_status("Limit Reached", Colors.RED)
@@ -515,8 +526,8 @@ class SCLL:
         set_status("Traversing...", Colors.ORANGE, "> p = last.next; count=1")
         # Visual traversal starting from first node (last.next)
         temp = self.last.next 
-        draw_pointer(temp, "CURR", Colors.ORANGE)
-        update_status_ui()
+        draw_pointer(temp, "CURR", Colors.ORANGE, screen)
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(800)
 
@@ -524,8 +535,8 @@ class SCLL:
         for i in range(pos - 2):
             erase_pointer(screen, temp, "CURR")
             temp = temp.next
-            draw_pointer(temp, "CURR", Colors.ORANGE)
-            update_status_ui()
+            draw_pointer(temp, "CURR", Colors.ORANGE, screen)
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(800)
 
@@ -539,7 +550,7 @@ class SCLL:
         screen.blit(subFont.render("data: ", True, Colors.LIGHT_GREY), (newNode.shape.x, newNode.shape.y))
         screen.blit(newNode.text, newNode.text.get_rect(center=newNode.shape.center))
         
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -559,7 +570,7 @@ class SCLL:
                 screen.blit(node.text, text_rect)
                 
                 if node == self.last:
-                    draw_pointer(node, "LAST", Colors.LIGHT_GREY)
+                    draw_pointer(node, "LAST", Colors.LIGHT_GREY, screen)
                 
                 # Draw normal connections (not the circular one we're erasing)
                 if node.next is not None:
@@ -582,7 +593,7 @@ class SCLL:
             erase_y = temp.shape.y + (temp.shape.height // 2) - 10
             pygame.draw.rect(screen, Colors.GREY, (erase_x, erase_y, 35, 20))
         
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -613,7 +624,7 @@ class SCLL:
             (end_x - arrow_size, end_y - arrow_size),
             (end_x - arrow_size, end_y + arrow_size)
         ])
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -668,7 +679,7 @@ class SCLL:
                     (end_x - arrow_size, end_y + arrow_size)
                 ])
         
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -678,11 +689,11 @@ class SCLL:
         
         erase_pointer(screen, temp, "CURR")
         self._recalculate_positions()
-        self._redraw()
+        self._redraw(screen)
         set_status("Insertion Complete!", Colors.GREEN, "> Success")
         pygame.time.delay(500)
 
-    def deleteFromBeginning(self):
+    def deleteFromBeginning(self, screen):
         if self.last is None: 
             set_status("List Empty!", Colors.RED, "> return")
             return
@@ -691,7 +702,7 @@ class SCLL:
         set_status("Identifying First Node...", Colors.ORANGE, "> first = last.next")
         
         pygame.draw.rect(screen, Colors.RED, first_node.shape, 2)
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -700,7 +711,7 @@ class SCLL:
             pygame.draw.rect(screen, Colors.GREY, (0, 370, 1000, 330))
             self.last = None
             set_status("Deleting Single Node...", Colors.ORANGE, "> last = None")
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(1000)
         else:
@@ -714,7 +725,7 @@ class SCLL:
                 text_rect = node.text.get_rect(center=node.shape.center)
                 screen.blit(node.text, text_rect)
                 if node == self.last:
-                    draw_pointer(node, "LAST", Colors.LIGHT_GREY)
+                    draw_pointer(node, "LAST", Colors.LIGHT_GREY, screen)
                 # Draw connections except circular and first_node connections
                 if node.next is not None and node != first_node:
                     if not (node == self.last and node.next == self.last.next):
@@ -728,7 +739,7 @@ class SCLL:
                             (end_x, end_y), (end_x - arrow_size, end_y - arrow_size),
                             (end_x - arrow_size, end_y + arrow_size)
                         ])
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(1000)
             
@@ -753,22 +764,22 @@ class SCLL:
                     (end_x, end_y), (end_x - arrow_size, end_y - arrow_size),
                     (end_x - arrow_size, end_y + arrow_size)
                 ])
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(1000)
 
         set_status("Deleting First Node...", Colors.ORANGE, "> del first")
-        update_status_ui()
+        update_status_ui(screen)
         pygame.time.delay(500)
         self.length -= 1
         self.nodes.pop(0)
         
         self._recalculate_positions()
-        self._redraw()
+        self._redraw(screen)
         set_status("First Node Deleted!", Colors.GREEN, "> Success")
         pygame.time.delay(500)
 
-    def deleteFromEnd(self):
+    def deleteFromEnd(self, screen):
         if self.last is None: 
             set_status("List Empty!", Colors.RED, "> return")
             return
@@ -781,7 +792,7 @@ class SCLL:
             self.last = None
             self.length -= 1
             self.nodes.pop()
-            self._redraw()
+            self._redraw(screen)
             set_status("Tail Deleted!", Colors.GREEN, "> Success")
             pygame.time.delay(500)
             return
@@ -789,21 +800,21 @@ class SCLL:
         set_status("Traversing...", Colors.ORANGE, "> while curr.next != last")
         
         curr = self.last.next  # First node
-        draw_pointer(curr, "CURR", Colors.ORANGE)
-        update_status_ui()
+        draw_pointer(curr, "CURR", Colors.ORANGE, screen)
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
         while curr.next != self.last:
             erase_pointer(screen, curr, "CURR")
             curr = curr.next
-            draw_pointer(curr, "CURR", Colors.ORANGE)
-            update_status_ui()
+            draw_pointer(curr, "CURR", Colors.ORANGE, screen)
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(1000)
         
         pygame.draw.rect(screen, Colors.RED, self.last.shape, 2)
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
         
@@ -817,7 +828,7 @@ class SCLL:
             text_rect = node.text.get_rect(center=node.shape.center)
             screen.blit(node.text, text_rect)
             if node == self.last:
-                draw_pointer(node, "LAST", Colors.LIGHT_GREY)
+                draw_pointer(node, "LAST", Colors.LIGHT_GREY, screen)
             # Draw connections except circular
             if node.next is not None and node != self.last:
                 start_x = node.shape.x + node.shape.width
@@ -831,7 +842,7 @@ class SCLL:
                     (end_x - arrow_size, end_y + arrow_size)
                 ])
         erase_pointer(screen, curr, "CURR")
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
         
@@ -842,7 +853,7 @@ class SCLL:
         
         # Erase LAST pointer from old last node
         erase_pointer(screen, old_last, "LAST")
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(500)
         
@@ -871,24 +882,24 @@ class SCLL:
         ])
         
         # Draw LAST pointer on new last node (curr)
-        draw_pointer(curr, "LAST", Colors.LIGHT_GREY)
+        draw_pointer(curr, "LAST", Colors.LIGHT_GREY, screen)
         set_status("Moving Tail...", Colors.ORANGE, "> last = curr")
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
         
         set_status("Deleting Last Node...", Colors.ORANGE, "> del last")
-        update_status_ui()
+        update_status_ui(screen)
         pygame.time.delay(500)
         self.nodes.pop()
         self.length -= 1
         
         self._recalculate_positions()
-        self._redraw()
+        self._redraw(screen)
         set_status("Tail Deleted!", Colors.GREEN, "> Success")
         pygame.time.delay(500)
 
-    def deleteByPosition(self, pos):
+    def deleteByPosition(self, pos, screen):
         if self.last is None:
             set_status("List Empty!", Colors.RED, "> return")
             return
@@ -898,21 +909,21 @@ class SCLL:
             return
         
         if pos == 1:
-            self.deleteFromBeginning()
+            self.deleteFromBeginning(screen)
             return
         
         if pos == self.length:
-            self.deleteFromEnd()
+            self.deleteFromEnd(screen)
             return
 
         set_status("Traversing...", Colors.ORANGE, "> while curr != pos")
         # Visual traversal starting from first node (last.next)
         curr = self.last.next
         prev = self.last
-        draw_pointer(curr, "CURR", Colors.ORANGE)
+        draw_pointer(curr, "CURR", Colors.ORANGE, screen)
         # Draw PREV pointer on last node using draw_pointer_on_last
-        draw_pointer_on_last(prev, "PREV", Colors.TEAL_BRIGHT)
-        update_status_ui()
+        draw_pointer_on_last(prev, "PREV", Colors.TEAL_BRIGHT, screen)
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -927,25 +938,25 @@ class SCLL:
                 erase_pointer(screen, prev, "PREV")
             prev = curr
             curr = curr.next
-            draw_pointer(curr, "CURR", Colors.ORANGE)
+            draw_pointer(curr, "CURR", Colors.ORANGE, screen)
             # Draw PREV pointer - use draw_pointer_on_last if prev is last node
             if prev == self.last:
-                draw_pointer_on_last(prev, "PREV", Colors.TEAL_BRIGHT)
+                draw_pointer_on_last(prev, "PREV", Colors.TEAL_BRIGHT, screen)
             else:
-                draw_pointer(prev, "PREV", Colors.TEAL_BRIGHT)
-            update_status_ui()
+                draw_pointer(prev, "PREV", Colors.TEAL_BRIGHT, screen)
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(1000)
 
         # Find previous node with visualization
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
         # Highlight node to delete
         pygame.draw.rect(screen, Colors.RED, curr.shape, 2)
         set_status("Node Found!", Colors.GREEN, "> Node at position found")
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -964,7 +975,7 @@ class SCLL:
                 screen.blit(node.text, text_rect)
                 
                 if node == self.last:
-                    draw_pointer(node, "LAST", Colors.LIGHT_GREY)
+                    draw_pointer(node, "LAST", Colors.LIGHT_GREY, screen)
                 
                 # Draw normal connections (not the circular one we're erasing)
                 if node.next is not None:
@@ -988,7 +999,7 @@ class SCLL:
             erase_y = prev.shape.y + (prev.shape.height // 2) - 10
             pygame.draw.rect(screen, Colors.GREY, (erase_x, erase_y, 35, 20))
         
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
@@ -1044,23 +1055,23 @@ class SCLL:
                     (end_x - arrow_size, end_y + arrow_size)
                 ])
         
-        update_status_ui()
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(1000)
 
         # Remove node from list
         set_status("Removing Node...", Colors.ORANGE, "> del curr")
-        update_status_ui()
+        update_status_ui(screen)
         index = self.nodes.index(curr)
         self.nodes.pop(index)
         self.length -= 1
 
         self._recalculate_positions()
-        self._redraw()
+        self._redraw(screen)
         set_status("Deletion Complete", Colors.GREEN, "> Success")
         pygame.time.delay(500)
 
-    def search(self, value):
+    def search(self, value, screen):
         if self.last is None: 
             set_status("List Empty!", Colors.RED, "> return")
             return
@@ -1071,8 +1082,8 @@ class SCLL:
         idx = 1
         found = False
         
-        draw_pointer(curr, "CURR", Colors.ORANGE)
-        update_status_ui()
+        draw_pointer(curr, "CURR", Colors.ORANGE, screen)
+        update_status_ui(screen)
         pygame.display.update()
         pygame.time.delay(800)
         
@@ -1081,7 +1092,7 @@ class SCLL:
                 found = True
                 curr.draw(screen, self, highlight_color=Colors.ORANGE, fill=True)
                 set_status(f"Found {value} at Pos {idx}", Colors.GREEN, f"> return {idx}")
-                update_status_ui()
+                update_status_ui(screen)
                 pygame.display.update()
                 pygame.time.delay(1000)
                 break
@@ -1094,19 +1105,19 @@ class SCLL:
             curr = curr.next
             idx += 1
             if curr == self.last:
-                draw_pointer_on_last(self.last, "CURR", Colors.ORANGE)
+                draw_pointer_on_last(self.last, "CURR", Colors.ORANGE, screen)
             else:
-                draw_pointer(curr, "CURR", Colors.ORANGE)
-            update_status_ui()
+                draw_pointer(curr, "CURR", Colors.ORANGE, screen)
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(800)
             
         if not found:
             set_status("Value Not Found", Colors.RED, "> return -1")
             
-        self._redraw()
+        self._redraw(screen)
 
-    def destroyList(self):
+    def destroyList(self, screen):
         if self.last is None:
             set_status("List is already Empty!", Colors.RED, "> if last is None: return")
             return
@@ -1117,8 +1128,8 @@ class SCLL:
             curr = self.last.next  # First node
             
             # Show pointer on current node
-            draw_pointer(curr, "CURR", Colors.ORANGE)
-            update_status_ui()
+            draw_pointer(curr, "CURR", Colors.ORANGE, screen)
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(500)
             
@@ -1133,7 +1144,7 @@ class SCLL:
                         text_rect = node.text.get_rect(center=node.shape.center)
                         screen.blit(node.text, text_rect)
                         if node == self.last:
-                            draw_pointer(node, "LAST", Colors.LIGHT_GREY)
+                            draw_pointer(node, "LAST", Colors.LIGHT_GREY, screen)
                         # Draw connections
                         if node.next is not None and node.next != curr:
                             start_x = node.shape.x + node.shape.width
@@ -1165,14 +1176,14 @@ class SCLL:
             # Redraw list
             pygame.draw.rect(screen, Colors.GREY, (0, 370, 1000, 330))
             if self.last:
-                self.drawList()
+                self.drawList(screen)
                 if self.last.next == self.last:
-                    draw_pointer_on_last(self.last, "CURR", Colors.ORANGE)
+                    draw_pointer_on_last(self.last, "CURR", Colors.ORANGE, screen)
                 else:
-                    draw_pointer(self.last.next, "CURR", Colors.ORANGE)
+                    draw_pointer(self.last.next, "CURR", Colors.ORANGE, screen)
                 
             
-            update_status_ui()
+            update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(500)
 
@@ -1181,11 +1192,35 @@ class SCLL:
         self.currentPos = (self.start_x_coord, 480)
         
         set_status("List Cleared!", Colors.GREEN, "> Success")
-        self._redraw()
+        self._redraw(screen)
         pygame.time.delay(500)
 
 
-def main():
+def run(screen):
+    # Font loaders
+    titleFont = get_font(40)
+    paraFont = get_font(17)
+    subFont = get_font(13)
+    nodeFont = get_font(28)
+    logicFont = get_font(15)
+    statFont = get_font(19)
+
+
+    status_msg = "Ready"
+    logic_msg = "Waiting for operation..."
+    status_color = Colors.LIGHT_GREY
+
+    # Text rendering
+    title = titleFont.render("Circular Linked List", True, Colors.TEAL)
+    cap_value_txt = paraFont.render("Capacity (Max 6): ", True, Colors.LIGHT_GREY)
+    value_txt_1 = paraFont.render("Value: ", True, Colors.LIGHT_GREY)
+    value_txt_2 = paraFont.render("Value: ", True, Colors.LIGHT_GREY)
+    pos_txt_1 = paraFont.render("Pos: ", True, Colors.LIGHT_GREY)
+    del_pos_txt = paraFont.render("Pos: ", True, Colors.LIGHT_GREY)
+
+    status_msg = "Ready"
+    logic_msg = "Waiting for operation..."
+
     scll = SCLL(6)
 
     cap_bar = InputBar(100, 145, 130, 40, Colors.BLACK)
@@ -1204,27 +1239,21 @@ def main():
     destroy_button = Button(780, 170, 130, 50, "Destroy List", None, 18)
     delete_pos_button = Button(520, 315, 120, 40, "Delete Pos", None, 18)
     search_button = Button(790, 315, 120, 40, "Search", None, 18)
-
-    title = titleFont.render("Circular Linked List", True, Colors.TEAL)
-    cap_value_txt = paraFont.render("Capacity (Max 6): ", True, Colors.LIGHT_GREY)
-    value_txt_1 = paraFont.render("Value: ", True, Colors.LIGHT_GREY)
-    value_txt_2 = paraFont.render("Value: ", True, Colors.LIGHT_GREY)
-    pos_txt_1 = paraFont.render("Pos: ", True, Colors.LIGHT_GREY)
-    del_pos_txt = paraFont.render("Pos: ", True, Colors.LIGHT_GREY)
+    back_button = Button(930, 15, 70, 35, "← Back", None, 18)
 
     running = True
     clock = pygame.time.Clock()
 
     while running:
         screen.fill(Colors.GREY)
-        
+
         screen.blit(title, (40, 40))
         screen.blit(cap_value_txt, (100, 115))
         screen.blit(value_txt_1, (100, 200))
         screen.blit(del_pos_txt, (380, 285))
         screen.blit(value_txt_2, (660, 285))
         screen.blit(pos_txt_1, (100, 285))
-        
+
         set_max_button.draw(screen)
         insert_tail_button.draw(screen)
         insert_head_button.draw(screen)
@@ -1234,26 +1263,27 @@ def main():
         destroy_button.draw(screen)
         delete_pos_button.draw(screen)
         search_button.draw(screen)
-        
+        back_button.draw(screen)
+
         cap_bar.draw(screen)
         node_bar.draw(screen)
         pos_insert_bar.draw(screen)
         del_val_bar.draw(screen)
         search_val_bar.draw(screen)
-        
-        scll.drawList()
-        update_status_ui()
+
+        scll.drawList(screen)
+        update_status_ui(screen)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                pygame.quit()
 
             cap_bar.handle_input(event)
             node_bar.handle_input(event)
             pos_insert_bar.handle_input(event)
             del_val_bar.handle_input(event)
             search_val_bar.handle_input(event)
-            
+
             if set_max_button.is_clicked(event):
                 if cap_bar.text.isdigit() and 0 < int(cap_bar.text) <= 6:
                     scll = SCLL(int(cap_bar.text))
@@ -1262,52 +1292,62 @@ def main():
                     set_status("Invalid Max (1-6)", Colors.RED)
 
             if insert_tail_button.is_clicked(event):
-                if node_bar.text: 
-                    scll.insertAtEnd(node_bar.text)
+                if node_bar.text:
+                    scll.insertAtEnd(node_bar.text, screen)
                     node_bar.text = ""
-                else: 
+                    set_status("Inserted at end", Colors.GREEN)
+                else:
                     set_status("Input Value", Colors.RED)
 
             if insert_head_button.is_clicked(event):
-                if node_bar.text: 
-                    scll.insertAtBeginning(node_bar.text)
+                if node_bar.text:
+                    scll.insertAtBeginning(node_bar.text, screen)
                     node_bar.text = ""
-                else: 
+                    set_status("Inserted at beginning", Colors.GREEN)
+                else:
                     set_status("Input Value", Colors.RED)
 
             if insert_at_pos_button.is_clicked(event):
                 if node_bar.text and pos_insert_bar.text.isdigit():
-                    scll.insertAtPosition(node_bar.text, int(pos_insert_bar.text))
+                    scll.insertAtPosition(node_bar.text, int(pos_insert_bar.text), screen)
                     pos_insert_bar.text = ""
-                else: 
+                    set_status("Inserted at position", Colors.GREEN)
+                else:
                     set_status("Check Inputs", Colors.RED)
 
-            if delete_head_button.is_clicked(event): 
-                scll.deleteFromBeginning()
-            
-            if delete_tail_button.is_clicked(event): 
-                scll.deleteFromEnd()
-            
+            if delete_head_button.is_clicked(event):
+                scll.deleteFromBeginning(screen)
+                set_status("Deleted from beginning", Colors.GREEN)
+
+            if delete_tail_button.is_clicked(event):
+                scll.deleteFromEnd(screen)
+                set_status("Deleted from end", Colors.GREEN)
+
             if destroy_button.is_clicked(event):
-                scll.destroyList()
-            
+                scll.destroyList(screen)
+                set_status("List destroyed", Colors.GREEN)
+
             if delete_pos_button.is_clicked(event):
                 if del_val_bar.text and del_val_bar.text.isdigit():
-                    scll.deleteByPosition(int(del_val_bar.text))
+                    scll.deleteByPosition(int(del_val_bar.text), screen)
                     del_val_bar.text = ""
-                else: 
-                    set_status("Input Valid Position", Colors.RED)
+                    set_status("Deleted from position", Colors.GREEN)
+                else:
+                   set_status("Input Valid Position", Colors.RED)
 
             if search_button.is_clicked(event):
-                if search_val_bar.text: 
-                    scll.search(search_val_bar.text)
-                else: 
+                if search_val_bar.text:
+                    scll.search(search_val_bar.text, screen)
+                    set_status("Search completed", Colors.GREEN)
+                else:
                     set_status("Input Value", Colors.RED)
 
+            if back_button.is_clicked(event):
+                return "back"
+
+        update_status_ui(screen)
         pygame.display.update()
         clock.tick(60)
 
-    pygame.quit()
+    return "back"
 
-if __name__ == "__main__":
-    main()

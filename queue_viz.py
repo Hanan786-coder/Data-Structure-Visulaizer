@@ -3,9 +3,6 @@ import sys
 import Colors
 
 # --- Configuration ---
-SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 700
-
 # Map Colors
 BACKGROUND_COLOR = Colors.GREY
 ELEMENT_COLOR = Colors.TEAL
@@ -24,12 +21,6 @@ SPACING = 5
 START_X = 300
 MAX_ALLOWED_CAPACITY = 6
 
-pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Queue Visualization (DSA Project)")
-clock = pygame.time.Clock()
-
-
 # --- Font Loading ---
 def get_font(size, bold=False):
     try:
@@ -37,8 +28,7 @@ def get_font(size, bold=False):
     except FileNotFoundError:
         return pygame.font.SysFont('Arial', size, bold=bold)
 
-
-# FONT SIZES
+# Global fonts (loaded once)
 font_title = get_font(28)
 font_ui = get_font(17)
 font_elem = get_font(19)
@@ -66,8 +56,10 @@ class Button:
         self.is_hovered = self.rect.collidepoint(mouse_pos)
 
     def check_click(self, mouse_pos):
+        """Returns the result of the action if clicked, else None"""
         if self.is_hovered and self.action:
-            self.action()
+            return self.action()
+        return None
 
 
 class InputBox:
@@ -108,192 +100,203 @@ class InputBox:
         pygame.draw.rect(screen, self.color, self.rect, 2, border_radius=5)
 
 
-# --- Logic State ---
-queue = []
-capacity = 6
-status_message = "Queue Initialized"
-status_color = TEXT_COLOR
-logic_message = "Waiting for operation..."
-peek_highlight_idx = -1
-peek_timer_start = 0
+# --- Main Run Function ---
+def run(screen):
+    clock = pygame.time.Clock()
 
-# UI
-val_input = InputBox(50, 180, 140, 40, text="", max_chars=9)
-cap_input = InputBox(50, 100, 80, 40, text="6", is_numeric_only=True, max_chars                                                                                                                                                                     =2)
+    # --- Local Logic State (Reset every time run is called) ---
+    state = {
+        "queue": [],
+        "capacity": 6,
+        "status_message": "Queue Initialized",
+        "status_color": TEXT_COLOR,
+        "logic_message": "Waiting for operation...",
+        "peek_highlight_idx": -1,
+        "peek_timer_start": 0
+    }
 
+    # UI Inputs
+    val_input = InputBox(50, 180, 140, 40, text="", max_chars=9)
+    cap_input = InputBox(50, 100, 80, 40, text="6", is_numeric_only=True, max_chars=2)
 
-def set_status(msg, color, logic_msg=""):
-    global status_message, status_color, logic_message
-    status_message = msg
-    status_color = color
-    logic_message = logic_msg
+    # --- Inner Helper Functions ---
+    def set_status(msg, color, logic_msg=""):
+        state["status_message"] = msg
+        state["status_color"] = color
+        state["logic_message"] = logic_msg
 
+    def set_capacity():
+        try:
+            if not cap_input.text: return
+            new_cap = int(cap_input.text)
 
-def set_capacity():
-    global capacity, queue
-    try:
-        if not cap_input.text: return
-        new_cap = int(cap_input.text)
+            if new_cap > MAX_ALLOWED_CAPACITY:
+                set_status(f"Error: Max Limit is {MAX_ALLOWED_CAPACITY}!", ERROR_COLOR, "Constraint: Capacity <= 6")
+                cap_input.text = str(MAX_ALLOWED_CAPACITY)
+                cap_input.txt_surface = font_ui.render(cap_input.text, True, TEXT_COLOR)
+                return
 
-        if new_cap > MAX_ALLOWED_CAPACITY:
-            set_status(f"Error: Max Limit is {MAX_ALLOWED_CAPACITY}!", ERROR_COLOR, "Constraint: Capacity <= 6")
-            cap_input.text = str(MAX_ALLOWED_CAPACITY)
-            cap_input.txt_surface = font_ui.render(cap_input.text, True, TEXT_COLOR)
+            if new_cap < 1:
+                set_status("Capacity must be >= 1", ERROR_COLOR, "Error: Invalid Size")
+                return
+
+            if len(state["queue"]) > new_cap:
+                state["queue"] = state["queue"][:new_cap]
+                set_status(f"Resized to {new_cap}. Truncated.", ERROR_COLOR, "Rear items removed")
+            else:
+                set_status(f"Capacity updated to {new_cap}", SUCCESS_COLOR, "capacity = " + str(new_cap))
+            state["capacity"] = new_cap
+        except ValueError:
+            set_status("Invalid Capacity", ERROR_COLOR)
+
+    def enqueue_item():
+        val = val_input.text.strip()
+        if not val:
+            set_status("Enter a value first!", ERROR_COLOR, "if val is None: return")
             return
 
-        if new_cap < 1:
-            set_status("Capacity must be >= 1", ERROR_COLOR, "Error: Invalid Size")
+        if len(state["queue"]) >= state["capacity"]:
+            set_status("Queue Overflow!", ERROR_COLOR, "if size == capacity: Overflow")
             return
 
-        if len(queue) > new_cap:
-            queue = queue[:new_cap]
-            set_status(f"Resized to {new_cap}. Truncated.", ERROR_COLOR, "Rear items removed")
-        else:
-            set_status(f"Capacity updated to {new_cap}", SUCCESS_COLOR, "capacity = " + str(new_cap))
-        capacity = new_cap
-    except ValueError:
-        set_status("Invalid Capacity", ERROR_COLOR)
+        state["queue"].append(val)
+        val_input.text = ""
+        val_input.txt_surface = font_ui.render("", True, TEXT_COLOR)
+        set_status(f"Enqueued: {val}", SUCCESS_COLOR, f"queue[rear] = {val} | rear++")
 
+    def dequeue_item():
+        if len(state["queue"]) == 0:
+            set_status("Queue Underflow!", ERROR_COLOR, "if size == 0: Underflow")
+            return
 
-def enqueue_item():
-    val = val_input.text.strip()
-    if not val:
-        set_status("Enter a value first!", ERROR_COLOR, "if val is None: return")
-        return
+        removed = state["queue"].pop(0)
+        set_status(f"Dequeued: {removed}", SUCCESS_COLOR, f"val = queue[0] | Shift Left | rear--")
 
-    if len(queue) >= capacity:
-        set_status("Queue Overflow!", ERROR_COLOR, "if size == capacity: Overflow")
-        return
+    def peek_item():
+        if len(state["queue"]) == 0:
+            set_status("Queue is Empty", ERROR_COLOR, "return None")
+            return
 
-    queue.append(val)
-    val_input.text = ""
-    val_input.txt_surface = font_ui.render("", True, TEXT_COLOR)
-    set_status(f"Enqueued: {val}", SUCCESS_COLOR, f"queue[rear] = {val} | rear++")
+        state["peek_highlight_idx"] = 0
+        state["peek_timer_start"] = pygame.time.get_ticks()
+        set_status(f"Front Item: {state['queue'][0]}", HIGHLIGHT_COLOR, "return queue[front]")
 
+    def go_back():
+        return "back"
 
-def dequeue_item():
-    if len(queue) == 0:
-        set_status("Queue Underflow!", ERROR_COLOR, "if size == 0: Underflow")
-        return
+    # --- Buttons Definition ---
+    btn_set_cap = Button(140, 100, 100, 40, "Set Cap", set_capacity)
+    btn_enq = Button(200, 180, 100, 40, "Enqueue", enqueue_item)
+    btn_deq = Button(50, 240, 120, 50, "Dequeue", dequeue_item)
+    btn_peek = Button(180, 240, 120, 50, "Peek", peek_item)
+    # The back button calls go_back which returns "back"
+    btn_back = Button(900, 15, 80, 40, "← Back", go_back)
 
-    removed = queue.pop(0)
-    set_status(f"Dequeued: {removed}", SUCCESS_COLOR, f"val = queue[0] | Shift Left | rear--")
+    buttons = [btn_set_cap, btn_enq, btn_deq, btn_peek, btn_back]
+    input_boxes = [val_input, cap_input]
 
+    # --- Main Loop ---
+    running = True
+    while running:
+        mouse_pos = pygame.mouse.get_pos()
+        current_time = pygame.time.get_ticks()
 
-def peek_item():
-    global peek_highlight_idx, peek_timer_start
-    if len(queue) == 0:
-        set_status("Queue is Empty", ERROR_COLOR, "return None")
-        return
+        # Handle Peek Highlight Timer
+        if state["peek_highlight_idx"] != -1:
+            if current_time - state["peek_timer_start"] > 1000:
+                state["peek_highlight_idx"] = -1
+                set_status("Ready", TEXT_COLOR, "Waiting...")
 
-    peek_highlight_idx = 0
-    peek_timer_start = pygame.time.get_ticks()
-    set_status(f"Front Item: {queue[0]}", HIGHLIGHT_COLOR, "return queue[front]")
+        # --- Event Handling ---
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            
+            for box in input_boxes:
+                box.handle_event(event)
+            
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                for btn in buttons:
+                    result = btn.check_click(event.pos)
+                    # If the button returned "back", exit the run function
+                    if result == "back":
+                        return "back"
 
+        # Update Hover States
+        for btn in buttons:
+            btn.check_hover(mouse_pos)
 
-# Buttons
-btn_set_cap = Button(140, 100, 100, 40, "Set Cap", set_capacity)
-btn_enq = Button(200, 180, 100, 40, "Enqueue", enqueue_item)
-btn_deq = Button(50, 240, 120, 50, "Dequeue", dequeue_item)
-btn_peek = Button(180, 240, 120, 50, "Peek", peek_item)
+        # --- Drawing ---
+        screen.fill(BACKGROUND_COLOR)
 
-buttons = [btn_set_cap, btn_enq, btn_deq, btn_peek]
-input_boxes = [val_input, cap_input]
+        # 1. UI Dashboard
+        title_surf = font_title.render("QUEUE (FIFO)", True, ELEMENT_COLOR)
+        screen.blit(title_surf, (50, 30))
 
-# --- Main Loop ---
-running = True
-while running:
-    mouse_pos = pygame.mouse.get_pos()
-    current_time = pygame.time.get_ticks()
+        status_surf = font_ui.render(state["status_message"], True, state["status_color"])
+        screen.blit(status_surf, (350, 30))
 
-    if peek_highlight_idx != -1:
-        if current_time - peek_timer_start > 1000:
-            peek_highlight_idx = -1
-            set_status("Ready", TEXT_COLOR, "Waiting...")
+        logic_label = font_ui.render("Logic Flow:", True, Colors.LIGHT_GREY)
+        screen.blit(logic_label, (350, 60))
+        logic_surf = font_logic.render(f"> {state['logic_message']}", True, Colors.TEAL_BRIGHT)
+        screen.blit(logic_surf, (350, 85))
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        for box in input_boxes:
-            box.handle_event(event)
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            for btn in buttons:
-                btn.check_click(event.pos)
+        lbl_cap = font_ui.render(f"Capacity (Max {MAX_ALLOWED_CAPACITY}):", True, Colors.LIGHT_GREY)
+        screen.blit(lbl_cap, (50, 65))
+        lbl_val = font_ui.render("Value:", True, Colors.LIGHT_GREY)
+        screen.blit(lbl_val, (50, 155))
 
-    for btn in buttons:
-        btn.check_hover(mouse_pos)
+        for box in input_boxes: box.draw(screen)
+        for btn in buttons: btn.draw(screen)
 
-    screen.fill(BACKGROUND_COLOR)
+        # 2. Visualization
+        container_width = state["capacity"] * (ELEM_WIDTH + SPACING) + SPACING
+        container_y = 400
 
-    # 1. UI Dashboard
-    title_surf = font_title.render("QUEUE (FIFO)", True, ELEMENT_COLOR)
-    screen.blit(title_surf, (50, 30))
+        # Guidelines
+        pygame.draw.line(screen, CONTAINER_COLOR,
+                        (START_X, container_y - 10),
+                        (START_X + container_width, container_y - 10), 4)
+        pygame.draw.line(screen, CONTAINER_COLOR,
+                        (START_X, container_y + ELEM_HEIGHT + 10),
+                        (START_X + container_width, container_y + ELEM_HEIGHT + 10), 4)
 
-    status_surf = font_ui.render(status_message, True, status_color)
-    screen.blit(status_surf, (350, 30))
+        # Elements
+        for i, item in enumerate(state["queue"]):
+            x_pos = START_X + i * (ELEM_WIDTH + SPACING) + SPACING
+            rect = pygame.Rect(x_pos, container_y, ELEM_WIDTH, ELEM_HEIGHT)
 
-    logic_label = font_ui.render("Logic Flow:", True, Colors.LIGHT_GREY)
-    screen.blit(logic_label, (350, 60))
-    logic_surf = font_logic.render(f"> {logic_message}", True, Colors.TEAL_BRIGHT)
-    screen.blit(logic_surf, (350, 85))
+            bg_col = HIGHLIGHT_COLOR if i == state["peek_highlight_idx"] else ELEMENT_COLOR
+            pygame.draw.rect(screen, bg_col, rect, border_radius=6)
 
-    lbl_cap = font_ui.render(f"Capacity (Max {MAX_ALLOWED_CAPACITY}):", True, Colors.LIGHT_GREY)
-    screen.blit(lbl_cap, (50, 65))
-    lbl_val = font_ui.render("Value:", True, Colors.LIGHT_GREY)
-    screen.blit(lbl_val, (50, 155))
+            txt_surf = font_elem.render(str(item), True, TEXT_COLOR)
+            txt_rect = txt_surf.get_rect(center=rect.center)
+            screen.blit(txt_surf, txt_rect)
 
-    for box in input_boxes: box.draw(screen)
-    for btn in buttons: btn.draw(screen)
+            # Index
+            idx_surf = font_index.render(f"{i}", True, Colors.LIGHT_GREY)
+            screen.blit(idx_surf, (x_pos + 6, container_y + 4))
 
-    # 2. Visualization
-    container_width = capacity * (ELEM_WIDTH + SPACING) + SPACING
-    container_y = 400
+        # Pointers
+        if state["queue"]:
+            # FRONT
+            front_x = START_X + SPACING + ELEM_WIDTH // 2
+            front_y = container_y - 20
+            pygame.draw.polygon(screen, TEXT_COLOR,
+                                [(front_x, front_y), (front_x - 10, front_y - 15), (front_x + 10, front_y - 15)])
+            lbl_front = font_index.render("FRONT", True, TEXT_COLOR)
+            screen.blit(lbl_front, (front_x - 20, front_y - 35))
 
-    # Guidelines
-    pygame.draw.line(screen, CONTAINER_COLOR,
-                     (START_X, container_y - 10),
-                     (START_X + container_width, container_y - 10), 4)
-    pygame.draw.line(screen, CONTAINER_COLOR,
-                     (START_X, container_y + ELEM_HEIGHT + 10),
-                     (START_X + container_width, container_y + ELEM_HEIGHT + 10), 4)
+            # REAR
+            rear_idx = len(state["queue"]) - 1
+            rear_x = START_X + rear_idx * (ELEM_WIDTH + SPACING) + SPACING + ELEM_WIDTH // 2
+            rear_y = container_y + ELEM_HEIGHT + 20
+            pygame.draw.polygon(screen, TEXT_COLOR,
+                                [(rear_x, rear_y), (rear_x - 10, rear_y + 15), (rear_x + 10, rear_y + 15)])
+            lbl_rear = font_index.render("REAR", True, TEXT_COLOR)
+            screen.blit(lbl_rear, (rear_x - 15, rear_y + 20))
 
-    # Elements
-    for i, item in enumerate(queue):
-        x_pos = START_X + i * (ELEM_WIDTH + SPACING) + SPACING
-        rect = pygame.Rect(x_pos, container_y, ELEM_WIDTH, ELEM_HEIGHT)
+        pygame.display.flip()
+        clock.tick(60)
 
-        bg_col = HIGHLIGHT_COLOR if i == peek_highlight_idx else ELEMENT_COLOR
-        pygame.draw.rect(screen, bg_col, rect, border_radius=6)
-
-        txt_surf = font_elem.render(str(item), True, TEXT_COLOR)
-        txt_rect = txt_surf.get_rect(center=rect.center)
-        screen.blit(txt_surf, txt_rect)
-
-        # Index
-        idx_surf = font_index.render(f"{i}", True, Colors.LIGHT_GREY)
-        screen.blit(idx_surf, (x_pos + 6, container_y + 4))
-
-    # Pointers
-    if queue:
-        # FRONT
-        front_x = START_X + SPACING + ELEM_WIDTH // 2
-        front_y = container_y - 20
-        pygame.draw.polygon(screen, TEXT_COLOR,
-                            [(front_x, front_y), (front_x - 10, front_y - 15), (front_x + 10, front_y - 15)])
-        lbl_front = font_index.render("FRONT", True, TEXT_COLOR)
-        screen.blit(lbl_front, (front_x - 20, front_y - 35))
-
-        # REAR
-        rear_idx = len(queue) - 1
-        rear_x = START_X + rear_idx * (ELEM_WIDTH + SPACING) + SPACING + ELEM_WIDTH // 2
-        rear_y = container_y + ELEM_HEIGHT + 20
-        pygame.draw.polygon(screen, TEXT_COLOR,
-                            [(rear_x, rear_y), (rear_x - 10, rear_y + 15), (rear_x + 10, rear_y + 15)])
-        lbl_rear = font_index.render("REAR", True, TEXT_COLOR)
-        screen.blit(lbl_rear, (rear_x - 15, rear_y + 20))
-
-    pygame.display.flip()
-    clock.tick(60)
-
-pygame.quit()
-sys.exit()
+    return "back"

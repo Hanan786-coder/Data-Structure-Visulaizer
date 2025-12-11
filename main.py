@@ -57,13 +57,26 @@ class Button:
                 self.func()
 
 
-DATA_STRUCTURES = [
+LINKED_LISTS = [
     ("Singly Linked List", "SinglyLinkedList.py"),
     ("Doubly Linked List", "DoublyLinkedList.py"),
     ("Circular Linked List", "CircularLinkedList.py"),
-    ("Stack", "stack_viz.py"),
+]
+
+QUEUES = [
     ("Queue", "queue_viz.py"),
     ("Circular Queue", "circular_queue_viz.py"),
+]
+
+HEAPS = [
+    ("MinHeap", "min_heap.py"),
+    ("MaxHeap", "max_heap.py"),
+]
+
+DATA_STRUCTURES = [
+    ("Linked Lists", None),
+    ("Queues", None),
+    ("Stack", "stack_viz.py"),
     ("Binary Tree", "tree2.py"),
 ]
 
@@ -93,47 +106,81 @@ class MainApp:
     def show_data_structures(self):
         self.state = "list"
         self.current_category = "Data Structures"
-        self.create_file_buttons(DATA_STRUCTURES)
+        self.buttons = []
+        y_pos = 180
+        
+        for name, filepath in DATA_STRUCTURES:
+            if filepath is None:
+                if name == "Linked Lists":
+                    btn = Button(50, y_pos, SCREEN_WIDTH - 100, 60, name, self.show_linked_lists, Colors.TEAL)
+                elif name == "Queues":
+                    btn = Button(50, y_pos, SCREEN_WIDTH - 100, 60, name, self.show_queues, Colors.TEAL)
+            else:
+                btn = Button(50, y_pos, SCREEN_WIDTH - 100, 60, name, 
+                            lambda f=filepath, n=name: self.load_visualization(f, n), Colors.TEAL)
+            self.buttons.append(btn)
+            y_pos += 90
+        
+        back_btn = Button(SCREEN_WIDTH - 200, 20, 180, 40, "← Back", self.show_home, Colors.ORANGE)
+        self.buttons.append(back_btn)
+
+    def show_linked_lists(self):
+        self.state = "list"
+        self.current_category = "Linked Lists"
+        self.create_file_buttons(LINKED_LISTS, self.show_data_structures)
+
+    def show_queues(self):
+        self.state = "list"
+        self.current_category = "Queues"
+        self.create_file_buttons(QUEUES, self.show_data_structures)
+
+    def show_heaps(self):
+        self.state = "list"
+        self.current_category = "Heaps"
+        self.create_file_buttons(HEAPS, self.show_data_structures)
 
     def show_algorithms(self):
         self.state = "list"
         self.current_category = "Algorithms"
         self.create_file_buttons(ALGORITHMS)
 
-    def create_file_buttons(self, files):
+    def create_file_buttons(self, files, back_func=None):
         self.buttons = []
         y_pos = 180
-        for name, filepath in files:
+        for item in files:
+            if len(item) == 2:
+                name, filepath = item
+            else:
+                name, filepath = item[0], item[1]
             btn = Button(50, y_pos, SCREEN_WIDTH - 100, 60, name, 
                         lambda f=filepath, n=name: self.load_visualization(f, n), Colors.TEAL)
             self.buttons.append(btn)
             y_pos += 90
 
-        back_btn = Button(SCREEN_WIDTH - 200, 20, 180, 40, "← Back", self.show_home, Colors.ORANGE)
+        if back_func is None:
+            back_func = self.show_home
+        back_btn = Button(SCREEN_WIDTH - 200, 20, 180, 40, "← Back", back_func, Colors.ORANGE)
         self.buttons.append(back_btn)
 
     def load_visualization(self, filepath, name):
         try:
             full_path = os.path.join(os.path.dirname(__file__), filepath)
-            
             spec = importlib.util.spec_from_file_location("viz_module", full_path)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            
-            if filepath == "SelectionSort.py":
-                self.current_viz = module.SelectionSortVisualizer()
-                self.viz_class_name = "SelectionSort"
-                self.current_viz.generate_random(5)
-            elif filepath == "mergesort.py":
-                self.current_viz = module.MergeSortTreeVisualizer()
-                self.viz_class_name = "MergeSort"
-                self.current_viz.generate_random(6)
-            else:
-                print(f"Visualization {filepath} not yet integrated")
+
+            if not hasattr(module, "run"):
+                print(f"{filepath} missing run(screen) function")
                 return
-                
-            self.state = "viz"
-            self.setup_viz_buttons()
+            
+            result = module.run(screen)
+
+            if result == "back":
+                self.show_home()
+            elif result == "quit":
+                pygame.quit()
+                sys.exit()
+
         except Exception as e:
             print(f"Error loading visualization: {e}")
             import traceback
@@ -244,15 +291,19 @@ class MainApp:
         return True
 
 
-app = MainApp()
-app.show_home()
+def run_main_game():
+    app = MainApp()
+    app.show_home()
+    
+    running = True
+    while running:
+        running = app.handle_events()
+        app.update()
+        app.draw()
+        clock.tick(60)
 
-running = True
-while running:
-    running = app.handle_events()
-    app.update()
-    app.draw()
-    clock.tick(60)
 
-pygame.quit()
-sys.exit()
+if __name__ == "__main__":
+    run_main_game()
+    pygame.quit()
+    sys.exit()
