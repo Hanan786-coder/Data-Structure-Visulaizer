@@ -3,7 +3,7 @@ import sys
 import Colors
 
 # --- Configuration ---
-SCREEN_WIDTH = 900
+SCREEN_WIDTH = 1000  # Updated to 1000
 SCREEN_HEIGHT = 700
 
 # Map Colors
@@ -245,7 +245,7 @@ while running:
     for btn in buttons: btn.draw(screen)
 
     # 2. Visualization
-    bucket_center_x = 600
+    bucket_center_x = 650  # Shifted right slightly for wider screen
     bucket_bottom_y = 650
 
     wall_height = capacity * (ELEM_HEIGHT + SPACING) + 20
