@@ -10,42 +10,52 @@ import Colors
 WIDTH, HEIGHT = 1000, 700
 
 # Color Constants
-ORANGE = (255, 108, 12)       # Highlight / Important
-GREY = Colors.GREY            # Background
-TEAL = (0, 173, 181)          # Default node fill / Primary UI
-TEAL_BRIGHT = (0, 200, 210)   # Hover / Path color
-TEAL_DARK = (0, 140, 145)     # Visited path fill color
-BLACK = (43, 40, 49)          # Input background
+ORANGE = (255, 108, 12)  # Highlight / Important
+GREY = Colors.GREY  # Background
+TEAL = (0, 173, 181)  # Default node fill / Primary UI
+TEAL_BRIGHT = (0, 200, 210)  # Hover / Path color
+TEAL_DARK = (0, 140, 145)  # Visited path fill color
+BLACK = (43, 40, 49)  # Input background
 LIGHT_GREY = (238, 238, 238)  # UI Text / Light elements
-WHITE = (255, 255, 255)       # Edges / Accent
-ERROR_COLOR = (255, 87, 87)   # Error messages
+WHITE = (255, 255, 255)  # Edges / Accent
+ERROR_COLOR = (255, 87, 87)  # Error messages
 SUCCESS_COLOR = (0, 200, 81)  # Success messages
 
 # Node Geometry
 NODE_RADIUS = 30
 NODE_BORDER_WIDTH = 2
-LEVEL_GAP = 70      # Vertical distance between levels
-START_Y = 100       # Base Y for the Root Node
+LEVEL_GAP = 70  # Vertical distance between levels
+START_Y = 150  # Base Y for the Root Node
 
 # Timing Constants (ms)
 TRAVERSE_STEP_MS = 500
 POST_TRAVERSE_MS = 1000
 INSERT_HIGHLIGHT_MS = 1000
 FOUND_HIGHLIGHT_MS = 1000
-ROTATION_MS = 1500
+ROTATION_MS = 1200  # Time allowed for rotation animation
+
 
 # -----------------------------------------------------------------------------
 # 2) DATA STRUCTURES & FONTS
 # -----------------------------------------------------------------------------
 
 class Node:
-    def __init__(self, value):
+    def __init__(self, value, x=0, y=0):
         self.value = value
         self.left = None
         self.right = None
-        self.x = 0
-        self.y = 0
-        self.height = 1 
+        # Physics Coordinates
+        self.x = float(x)
+        self.y = float(y)
+        self.target_x = float(x)
+        self.target_y = float(y)
+        self.height = 1
+
+    def update_physics(self):
+        # Smoothly interpolate towards target
+        self.x += (self.target_x - self.x) * 0.1
+        self.y += (self.target_y - self.y) * 0.1
+
 
 def get_font(size, bold=False):
     try:
@@ -53,11 +63,13 @@ def get_font(size, bold=False):
     except:
         return pygame.font.SysFont('Arial', size, bold=bold)
 
+
 # Global fonts (loaded once)
 font_ui = get_font(20)
 font_elem = get_font(18, bold=True)
 font_title = get_font(28, bold=True)
 font_logic = get_font(16)
+
 
 # -----------------------------------------------------------------------------
 # 3) UI CLASSES
@@ -140,7 +152,7 @@ def run(screen):
 
     # UI Elements
     input_box = InputBox(50, 150, 140, 40)
-    
+
     buttons = [
         Button(50, 210, 140, 40, "Insert", "INSERT"),
         Button(50, 260, 140, 40, "Delete", "DELETE"),
@@ -151,23 +163,30 @@ def run(screen):
         Button(900, 20, 80, 40, "Back", "BACK")
     ]
 
-    # --- Helper Functions (Nested to access `state`) ---
+    # --- Helper Functions ---
 
     def set_status(msg, color, logic=""):
         state["status_message"] = msg
         state["status_color"] = color
         state["logic_message"] = "> " + logic if logic else ""
 
-    def update_positions(node, x_min, x_max, depth, y_base, level_gap):
+    def update_targets(node, x_min, x_max, depth, y_base, level_gap):
         if not node: return
         mid_x = (x_min + x_max) // 2
-        node.x = mid_x
-        node.y = y_base + (depth * level_gap)
-        update_positions(node.left, x_min, mid_x, depth + 1, y_base, level_gap)
-        update_positions(node.right, mid_x, x_max, depth + 1, y_base, level_gap)
+        # Set Target position (Physics will glide node there)
+        node.target_x = mid_x
+        node.target_y = y_base + (depth * level_gap)
+        update_targets(node.left, x_min, mid_x, depth + 1, y_base, level_gap)
+        update_targets(node.right, mid_x, x_max, depth + 1, y_base, level_gap)
 
     def refresh_layout():
-        update_positions(state["root"], 250, WIDTH, 0, START_Y, LEVEL_GAP)
+        update_targets(state["root"], 250, WIDTH, 0, START_Y, LEVEL_GAP)
+
+    def update_physics(node):
+        if not node: return
+        node.update_physics()
+        update_physics(node.left)
+        update_physics(node.right)
 
     # AVL Helpers
     def get_height(node):
@@ -184,7 +203,8 @@ def run(screen):
         state["traversal_path"] = []
 
         if state["root"] is None:
-            state["root"] = Node(val)
+            # Spawn root at top center
+            state["root"] = Node(val, 600, START_Y)
             refresh_layout()
             state["final_highlight_node"] = state["root"]
             set_status(f"Inserted: {val}", SUCCESS_COLOR, "root is None; root = newNode")
@@ -207,8 +227,9 @@ def run(screen):
                 set_status(f"Visiting: {curr.value}", TEAL_BRIGHT, f"{val} < {curr.value}: Go Left")
                 yield TRAVERSE_STEP_MS
                 if curr.left is None:
-                    curr.left = Node(val)
-                    refresh_layout()
+                    # Spawn at parent location
+                    curr.left = Node(val, curr.x, curr.y)
+                    refresh_layout()  # Triggers physics movement to new spot
                     state["final_highlight_node"] = curr.left
                     set_status(f"Inserted: {val}", SUCCESS_COLOR, "curr.left = newNode")
                     state["highlight_node"] = None
@@ -221,7 +242,8 @@ def run(screen):
                 set_status(f"Visiting: {curr.value}", TEAL_BRIGHT, f"{val} > {curr.value}: Go Right")
                 yield TRAVERSE_STEP_MS
                 if curr.right is None:
-                    curr.right = Node(val)
+                    # Spawn at parent location
+                    curr.right = Node(val, curr.x, curr.y)
                     refresh_layout()
                     state["final_highlight_node"] = curr.right
                     set_status(f"Inserted: {val}", SUCCESS_COLOR, "curr.right = newNode")
@@ -443,74 +465,65 @@ def run(screen):
         if not node:
             return None
 
-        # Post-order traversal
+        # Post-order traversal: Balance children first
         node.left = yield from gen_balance_recursive(node.left)
         node.right = yield from gen_balance_recursive(node.right)
 
-        refresh_layout()
+        # Highlight current node being checked
         state["highlight_node"] = node
+        refresh_layout()
+        # No yield here allows faster checking of balanced nodes,
+        # preventing "press twice" feel for simple traversals.
 
         bf = get_balance(node)
 
+        # Only pause and animate if there is an issue
         if bf > 1 or bf < -1:
-            set_status(f"Imbalance at {node.value}: {bf}", ORANGE, "Checking rotation cases...")
             state["final_highlight_node"] = node
-            yield 1000
+            set_status(f"Imbalance at {node.value}: {bf}", ORANGE, "Rotating...")
+            yield 800
 
-        # Left Heavy
-        if bf > 1:
-            if get_balance(node.left) >= 0:
-                set_status(f"LL Case at {node.value}", TEAL_BRIGHT, "Performing Right Rotation")
-                yield ROTATION_MS
-                new_root = rotate_right(node)
-                refresh_layout()
-                state["final_highlight_node"] = new_root
-                yield ROTATION_MS
-                return new_root
-            else:
-                set_status(f"LR Case at {node.value}", TEAL_BRIGHT, "1. Left Rotate Child")
-                state["final_highlight_node"] = node.left
-                yield ROTATION_MS
-                node.left = rotate_left(node.left)
-                refresh_layout()
-                yield ROTATION_MS
+            # Left Heavy
+            if bf > 1:
+                if get_balance(node.left) >= 0:
+                    set_status(f"LL Case at {node.value}", TEAL_BRIGHT, "Right Rotate")
+                    new_root = rotate_right(node)
+                    refresh_layout()  # Physics glide
+                    yield ROTATION_MS
+                    return new_root
+                else:
+                    set_status(f"LR Case at {node.value}", TEAL_BRIGHT, "Left Rotate Child...")
+                    node.left = rotate_left(node.left)
+                    refresh_layout()
+                    yield ROTATION_MS
 
-                set_status(f"LR Case at {node.value}", TEAL_BRIGHT, "2. Right Rotate Root")
-                state["final_highlight_node"] = node
-                yield ROTATION_MS
-                new_root = rotate_right(node)
-                refresh_layout()
-                state["final_highlight_node"] = new_root
-                yield ROTATION_MS
-                return new_root
+                    set_status(f"LR Case at {node.value}", TEAL_BRIGHT, "Right Rotate Root")
+                    new_root = rotate_right(node)
+                    refresh_layout()
+                    yield ROTATION_MS
+                    return new_root
 
-        # Right Heavy
-        if bf < -1:
-            if get_balance(node.right) <= 0:
-                set_status(f"RR Case at {node.value}", TEAL_BRIGHT, "Performing Left Rotation")
-                yield ROTATION_MS
-                new_root = rotate_left(node)
-                refresh_layout()
-                state["final_highlight_node"] = new_root
-                yield ROTATION_MS
-                return new_root
-            else:
-                set_status(f"RL Case at {node.value}", TEAL_BRIGHT, "1. Right Rotate Child")
-                state["final_highlight_node"] = node.right
-                yield ROTATION_MS
-                node.right = rotate_right(node.right)
-                refresh_layout()
-                yield ROTATION_MS
+            # Right Heavy
+            if bf < -1:
+                if get_balance(node.right) <= 0:
+                    set_status(f"RR Case at {node.value}", TEAL_BRIGHT, "Left Rotate")
+                    new_root = rotate_left(node)
+                    refresh_layout()
+                    yield ROTATION_MS
+                    return new_root
+                else:
+                    set_status(f"RL Case at {node.value}", TEAL_BRIGHT, "Right Rotate Child...")
+                    node.right = rotate_right(node.right)
+                    refresh_layout()
+                    yield ROTATION_MS
 
-                set_status(f"RL Case at {node.value}", TEAL_BRIGHT, "2. Left Rotate Root")
-                state["final_highlight_node"] = node
-                yield ROTATION_MS
-                new_root = rotate_left(node)
-                refresh_layout()
-                state["final_highlight_node"] = new_root
-                yield ROTATION_MS
-                return new_root
+                    set_status(f"RL Case at {node.value}", TEAL_BRIGHT, "Left Rotate Root")
+                    new_root = rotate_left(node)
+                    refresh_layout()
+                    yield ROTATION_MS
+                    return new_root
 
+        # No rotation needed for this node
         state["final_highlight_node"] = None
         return node
 
@@ -520,39 +533,24 @@ def run(screen):
             yield 1000
             return
 
-        set_status("Starting AVL Balance", TEAL_BRIGHT, "Bottom-up Post-Order Traversal")
-        yield 1000
+        set_status("Balancing Tree...", TEAL_BRIGHT, "Bottom-up Check")
         state["root"] = yield from gen_balance_recursive(state["root"])
+
+        refresh_layout()
         state["highlight_node"] = None
         state["final_highlight_node"] = None
-        set_status("Balancing Complete", SUCCESS_COLOR, "Tree satisfies AVL property")
+        set_status("Balancing Complete", SUCCESS_COLOR, "AVL Property Satisfied")
         yield 1000
 
-    # --- Drawing Functions (Nested) ---
+    # --- Drawing Functions ---
     def draw_edges(surface, node):
         if node is None: return
         if node.left:
-            color, width = WHITE, 2
-            if node in state["traversal_path"] and node.left in state["traversal_path"]:
-                try:
-                    idx = state["traversal_path"].index(node)
-                    if idx + 1 < len(state["traversal_path"]) and state["traversal_path"][idx + 1] == node.left:
-                        color, width = TEAL_BRIGHT, 4
-                except:
-                    pass
-            pygame.draw.line(surface, color, (node.x, node.y), (node.left.x, node.left.y), width)
+            # Draw actual current positions
+            pygame.draw.line(surface, WHITE, (node.x, node.y), (node.left.x, node.left.y), 2)
             draw_edges(surface, node.left)
-
         if node.right:
-            color, width = WHITE, 2
-            if node in state["traversal_path"] and node.right in state["traversal_path"]:
-                try:
-                    idx = state["traversal_path"].index(node)
-                    if idx + 1 < len(state["traversal_path"]) and state["traversal_path"][idx + 1] == node.right:
-                        color, width = TEAL_BRIGHT, 4
-                except:
-                    pass
-            pygame.draw.line(surface, color, (node.x, node.y), (node.right.x, node.right.y), width)
+            pygame.draw.line(surface, WHITE, (node.x, node.y), (node.right.x, node.right.y), 2)
             draw_edges(surface, node.right)
 
     def draw_nodes(surface, node):
@@ -571,12 +569,13 @@ def run(screen):
             border_color = TEAL_BRIGHT
             fill_color = TEAL_DARK
 
-        pygame.draw.circle(surface, fill_color, (node.x, node.y), NODE_RADIUS)
-        pygame.draw.circle(surface, border_color, (node.x, node.y), NODE_RADIUS, NODE_BORDER_WIDTH)
+        # Draw at current physics coordinates
+        pygame.draw.circle(surface, fill_color, (int(node.x), int(node.y)), NODE_RADIUS)
+        pygame.draw.circle(surface, border_color, (int(node.x), int(node.y)), NODE_RADIUS, NODE_BORDER_WIDTH)
 
         text_color = WHITE if fill_color in [TEAL, TEAL_BRIGHT, TEAL_DARK, ORANGE] else BLACK
         val_surf = font_elem.render(str(node.value), True, text_color)
-        val_rect = val_surf.get_rect(center=(node.x, node.y))
+        val_rect = val_surf.get_rect(center=(int(node.x), int(node.y)))
         surface.blit(val_surf, val_rect)
 
         draw_nodes(surface, node.left)
@@ -618,6 +617,9 @@ def run(screen):
         current_time = pygame.time.get_ticks()
         mouse_pos = pygame.mouse.get_pos()
 
+        # Update Physics every frame for smooth sliding
+        update_physics(state["root"])
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return "quit"
@@ -631,6 +633,14 @@ def run(screen):
                             if btn.action_code == "BACK":
                                 return "back"
 
+                            if btn.action_code == "CLEAR":
+                                state["root"] = None
+                                state["traversal_path"] = []
+                                state["highlight_node"] = None
+                                state["final_highlight_node"] = None
+                                set_status("Tree Cleared", SUCCESS_COLOR, "root = None")
+                                continue
+
                             val = None
                             if btn.action_code in ["INSERT", "DELETE", "SEARCH"]:
                                 try:
@@ -641,20 +651,18 @@ def run(screen):
 
                             if btn.action_code == "INSERT":
                                 state["current_generator"] = gen_insert(val)
+                                input_box.text = ""
+                                input_box.txt_surface = font_ui.render("", True, LIGHT_GREY)
                             elif btn.action_code == "DELETE":
                                 state["current_generator"] = gen_delete(val)
+                                input_box.text = ""
+                                input_box.txt_surface = font_ui.render("", True, LIGHT_GREY)
                             elif btn.action_code == "SEARCH":
                                 state["current_generator"] = gen_search(val)
                             elif btn.action_code == "TRAVERSE":
                                 state["current_generator"] = gen_traverse_wrapper()
                             elif btn.action_code == "BALANCE":
                                 state["current_generator"] = gen_balance()
-                            elif btn.action_code == "CLEAR":
-                                state["root"] = None
-                                state["traversal_path"] = []
-                                state["highlight_node"] = None
-                                state["final_highlight_node"] = None
-                                set_status("Tree Cleared", SUCCESS_COLOR, "root = None")
 
                             state["last_step_time"] = current_time - 2000
 
