@@ -383,7 +383,7 @@ class SCLL:
             set_status("Tail Updated", Colors.GREEN, "> last = newNode")
             # Erase old LAST pointer and draw new one
             erase_pointer(screen, old_last, "LAST")
-            draw_pointer(newNode, "LAST", Colors.LIGHT_GREY)
+            draw_pointer(newNode, "LAST", Colors.LIGHT_GREY, screen)
             update_status_ui(screen)
             pygame.display.update()
             pygame.time.delay(500)
